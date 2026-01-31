@@ -1,0 +1,27 @@
+paths:
+  data_dir: data
+  outputs_dir: outputs
+
+omics:
+  counts_path: data/TCGA-COAD.star_counts.tsv
+  cohort: TCGA-COAD
+  dataset_label: STAR-Counts-log2p1
+
+candidates:
+  candidate_list_path: data/candidates.csv
+
+pubmed:
+  max_abstracts_per_gene: 20
+  query_templates:
+    - "colorectal cancer {gene}"
+    - "colon cancer {gene}"
+    - "rectal cancer {gene}"
+
+pathway:
+  source: reactome
+
+scoring:
+  weights:
+    omics: 0.45
+    literature: 0.35
+    pathway: 0.20
