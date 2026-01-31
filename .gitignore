@@ -1,0 +1,5 @@
+# Local data storage - always gitignored
+data/
+
+# Generated results - always gitignored
+outputs/
