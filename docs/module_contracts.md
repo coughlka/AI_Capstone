@@ -11,14 +11,20 @@ This document describes the required output schemas for each pipeline module.
 
 ### outputs/omics_evidence.csv
 
-Gene expression statistics from RNA-seq data.
+Tumor vs normal differential expression evidence from RNA-seq data.
 
 | Column | Type | Description |
 |--------|------|-------------|
-| gene | string | Gene identifier |
-| mean_expr | float | Mean expression across samples |
-| var_expr | float | Variance of expression across samples |
+| gene | string | Gene identifier (Ensembl ID) |
+| log2fc | float | Log2 fold change (tumor - normal on log2 scale) |
+| p_value | float | Welch's t-test p-value |
+| fdr | float | Benjamini-Hochberg FDR-adjusted p-value |
+| direction | string | Direction of change: 'up' or 'down' |
+| tumor_mean | float | Mean expression in tumor samples |
+| normal_mean | float | Mean expression in normal samples |
 | dataset | string | Dataset label from config |
+
+Rows are sorted by FDR (ascending).
 
 ### outputs/lit_evidence.csv
 

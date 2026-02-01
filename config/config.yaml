@@ -7,8 +7,14 @@ omics:
   cohort: TCGA-COAD
   dataset_label: STAR-Counts-log2p1
 
+gene_mapping:
+  cache_path: data/ensembl_to_symbol_cache.tsv
+  use_api: true
+
 candidates:
-  candidate_list_path: data/candidates.csv
+  top_n: 500
+  fdr_threshold: 0.05
+  output_path: outputs/candidates.csv
 
 pubmed:
   max_abstracts_per_gene: 20

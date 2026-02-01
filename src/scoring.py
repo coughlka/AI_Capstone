@@ -2,6 +2,7 @@
 
 import os
 
+import numpy as np
 import pandas as pd
 
 from src.utils import load_config, ensure_dirs, write_csv, read_csv
@@ -36,6 +37,9 @@ def run_scoring(config_path: str) -> str:
     Combines evidence from omics, literature, and pathway modules to compute
     a weighted final score for each gene.
 
+    Omics scoring is based on differential expression signal:
+    omics_signal = |log2FC| * -log10(FDR + epsilon)
+
     Args:
         config_path: Path to the configuration YAML file.
 
@@ -60,11 +64,11 @@ def run_scoring(config_path: str) -> str:
     # Check for missing upstream outputs
     missing = []
     if not os.path.exists(omics_path):
-        missing.append(f"omics_evidence.csv (run omics step first)")
+        missing.append("omics_evidence.csv (run omics step first)")
     if not os.path.exists(lit_path):
-        missing.append(f"lit_evidence.csv (run pubmed step first)")
+        missing.append("lit_evidence.csv (run pubmed step first)")
     if not os.path.exists(pathway_path):
-        missing.append(f"pathway_evidence.csv (run pathway step first)")
+        missing.append("pathway_evidence.csv (run pathway step first)")
 
     if missing:
         raise FileNotFoundError(
@@ -99,10 +103,31 @@ def run_scoring(config_path: str) -> str:
         write_csv(ranked, output_path)
         return output_path
 
-    # Compute omics_score: min-max normalize mean_expr to 0-100
-    print("[scoring] Computing omics scores...")
-    scored = omics_df[['gene']].copy()
-    scored['omics_score'] = _min_max_normalize(omics_df['mean_expr'])
+    # Compute omics_score based on differential expression signal
+    # omics_signal = |log2FC| * -log10(FDR + epsilon)
+    print("[scoring] Computing omics scores from DE signal...")
+
+    # Check if we have the new DE columns or old mean_expr column
+    if 'log2fc' in omics_df.columns and 'fdr' in omics_df.columns:
+        # New DE-based scoring
+        epsilon = 1e-300  # Prevent log10(0)
+        omics_df['omics_signal'] = (
+            omics_df['log2fc'].abs() *
+            (-np.log10(omics_df['fdr'] + epsilon))
+        )
+        scored = omics_df[['gene']].copy()
+        scored['omics_score'] = _min_max_normalize(omics_df['omics_signal'])
+        print("[scoring] Using DE-based scoring: |log2FC| * -log10(FDR)")
+    elif 'mean_expr' in omics_df.columns:
+        # Fallback to old mean expression scoring
+        scored = omics_df[['gene']].copy()
+        scored['omics_score'] = _min_max_normalize(omics_df['mean_expr'])
+        print("[scoring] Warning: Using legacy mean expression scoring")
+    else:
+        # No valid scoring columns found
+        print("[scoring] Warning: No valid omics scoring columns found. Using zeros.")
+        scored = omics_df[['gene']].copy()
+        scored['omics_score'] = 0.0
 
     # Compute literature_score: count rows per gene in lit_evidence, normalize to 0-100
     print("[scoring] Computing literature scores...")
@@ -143,5 +168,11 @@ def run_scoring(config_path: str) -> str:
     print(f"[scoring] Writing output to: {output_path}")
     write_csv(ranked, output_path)
 
-    print(f"[scoring] Done. {len(ranked)} genes ranked.")
+    # Print top 10 ranked genes
+    print(f"\n[scoring] Top 10 ranked genes:")
+    for i, (_, row) in enumerate(ranked.head(10).iterrows()):
+        print(f"        {i+1}. {row['gene']}: final={row['final_score']:.2f}, "
+              f"omics={row['omics_score']:.2f}")
+
+    print(f"\n[scoring] Done. {len(ranked)} genes ranked.")
     return output_path
