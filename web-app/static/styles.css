@@ -1,0 +1,162 @@
+:root {
+    --primary-color: #0ea5e9; /* Sky blue */
+    --secondary-color: #0284c7; /* Darker blue */
+    --bg-color: #f8fafc;
+    --text-color: #334155;
+    --border-color: #cbd5e1;
+    --card-bg: #ffffff;
+    --success-color: #22c55e;
+    --warning-color: #eab308;
+    --danger-color: #ef4444;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    display: flex;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.container {
+    background-color: var(--card-bg);
+    width: 100%;
+    max-width: 600px;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+h1 {
+    font-size: 1.8rem;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+p {
+    color: #64748b;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+@media (max-width: 500px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #475569;
+}
+
+input, select {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-color: #fff;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.form-actions {
+    margin-top: 2rem;
+}
+
+button {
+    width: 100%;
+    padding: 0.875rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+button:hover {
+    background-color: var(--secondary-color);
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+/* Results Section */
+.hidden {
+    display: none;
+}
+
+#resultContainer {
+    margin-top: 2rem;
+    border-top: 2px solid #f1f5f9;
+    padding-top: 2rem;
+    text-align: center;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.result-box {
+    margin-top: 1rem;
+    background: #f0f9ff;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #bae6fd;
+}
+
+#riskScore {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.progress-bar {
+    height: 12px;
+    background-color: #e2e8f0;
+    border-radius: 6px;
+    margin-top: 1rem;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--primary-color);
+    width: 0%;
+    transition: width 1s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
