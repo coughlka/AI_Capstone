@@ -5,6 +5,7 @@ An explainable AI pipeline for synthesizing and ranking colorectal cancer biomar
 ## Overview
 
 This project integrates:
+
 - **Omics evidence** — Tumor vs normal differential expression from TCGA-COAD RNA-seq
 - **Literature evidence** — PubMed abstract mining for gene-disease associations
 - **Pathway evidence** — Pathway enrichment from Reactome/KEGG
@@ -32,7 +33,7 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
-pip install pyyaml pandas numpy scipy
+pip install -r requirements
 ```
 
 ### 2. Download Data
@@ -86,6 +87,7 @@ See [docs/module_contracts.md](docs/module_contracts.md) for detailed output sch
 ### For Ayan (pubmed.py)
 
 Your module should:
+
 1. Read candidate genes from `outputs/candidates.csv`
 2. Query PubMed for colorectal cancer associations
 3. Output `outputs/lit_evidence.csv` with columns:
@@ -94,6 +96,7 @@ Your module should:
 ### For Gabriel (pathway.py)
 
 Your module should:
+
 1. Read candidate genes from `outputs/candidates.csv`
 2. Query Reactome/KEGG for pathway membership
 3. Output `outputs/pathway_evidence.csv` with columns:
@@ -104,11 +107,3 @@ Your module should:
 - **473 tumor** vs **41 normal** samples
 - **25,800 significant genes** (FDR < 0.05)
 - Known CRC genes validated: APC, KRAS, SMAD4, PIK3CA, BRAF
-
-## Dependencies
-
-- Python 3.9+
-- pandas
-- numpy
-- scipy
-- pyyaml
