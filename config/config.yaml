@@ -3,7 +3,7 @@ paths:
   outputs_dir: outputs
 
 omics:
-  counts_path: data/TCGA-COAD.star_counts.tsv
+  counts_path: data/TCGA-COAD.star_counts.tsv.gz
   cohort: TCGA-COAD
   dataset_label: STAR-Counts-log2p1
 
@@ -25,6 +25,7 @@ pubmed:
 
 pathway:
   source: reactome
+  fdr_threshold: 0.05
 
 scoring:
   weights:
