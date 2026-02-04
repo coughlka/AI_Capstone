@@ -1,0 +1,23 @@
+services:
+  web-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: biomarker-cancer-web-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./web-app:/web-app
+    environment:
+      - BACKEND_PORT=8000
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "8080:80"
+    volumes:
+      - ./web-app/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./web-app/nginx/.htpasswd:/etc/nginx/.htpasswd
+    depends_on:
+      - web-app

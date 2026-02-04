@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biomarker Cancer Risk Analysis</title>
+    <link rel="stylesheet" href="static/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Biomarker Cancer Analysis</h1>
+            <p>Enter patient biomarker data to estimate risk.</p>
+        </header>
+
+        <main>
+            <form id="analysisForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="age">Age</label>
+                        <input type="number" id="age" name="age" required min="0" placeholder="e.g. 45">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="gender">Gender</label>
+                        <select id="gender" name="gender" required>
+                            <option value="" disabled selected>Select...</option>
+                            <option value="0">Male</option>
+                            <option value="1">Female</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="glucose">Glucose (mg/dL)</label>
+                        <input type="number" id="glucose" name="glucose" required min="0" placeholder="e.g. 90">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cholesterol">Cholesterol (mg/dL)</label>
+                        <input type="number" id="cholesterol" name="cholesterol" required min="0"
+                            placeholder="e.g. 200">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hdl">HDL (mg/dL)</label>
+                        <input type="number" id="hdl" name="hdl" required min="0" placeholder="e.g. 50">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ldl">LDL (mg/dL)</label>
+                        <input type="number" id="ldl" name="ldl" required min="0" placeholder="e.g. 100">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tch">TCH</label>
+                        <input type="number" id="tch" name="tch" required min="0" placeholder="e.g. 150">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="bmi">BMI</label>
+                        <input type="number" id="bmi" name="bmi" required min="0" placeholder="e.g. 24">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="smoker">Smoker</label>
+                        <select id="smoker" name="smoker" required>
+                            <option value="" disabled selected>Select...</option>
+                            <option value="0">No</option>
+                            <option value="1">Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="alcohol">Alcohol Consumption</label>
+                        <select id="alcohol" name="alcohol" required>
+                            <option value="" disabled selected>Select...</option>
+                            <option value="0">No</option>
+                            <option value="1">Yes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" id="submitBtn">Analyze Risk</button>
+                </div>
+            </form>
+
+            <div id="resultContainer" class="hidden">
+                <h2>Analysis Result</h2>
+                <div class="result-box">
+                    <p>Risk Score: <span id="riskScore">--</span>/100</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="riskBar"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="static/script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,13 @@
+# Minimal FastAPI requirements
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+# For calling external GraphQL APIs
+httpx==0.25.1
+python-dotenv==1.0.0
+
+# Data processing
+pandas
+numpy
+scipy
+pyyaml
