@@ -3,7 +3,7 @@ paths:
   outputs_dir: outputs
 
 omics:
-  counts_path: data/TCGA-COAD.star_counts.tsv.gz
+  counts_path: data/TCGA-COAD.star_counts.tsv
   cohort: TCGA-COAD
   dataset_label: STAR-Counts-log2p1
 
