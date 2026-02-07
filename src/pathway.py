@@ -4,12 +4,52 @@ import io
 import os
 import csv
 import time
+from typing import Optional
+
 import httpx
 import pandas as pd
 
 from src.utils import load_config, ensure_dirs, write_csv
 
 REACTOME_API_URL = "https://reactome.org/AnalysisService"
+MAX_RETRIES = 3
+RETRY_DELAYS = [1, 3, 10]  # seconds
+
+
+def _request_with_retry(
+    method: str,
+    url: str,
+    timeout: float = 30.0,
+    **kwargs
+) -> Optional[httpx.Response]:
+    """Make HTTP request with exponential backoff retry.
+
+    Args:
+        method: HTTP method ('GET' or 'POST')
+        url: Request URL
+        timeout: Request timeout in seconds
+        **kwargs: Additional arguments to pass to httpx
+
+    Returns:
+        Response object if successful, None if all retries failed
+    """
+    for attempt in range(MAX_RETRIES):
+        try:
+            if method.upper() == "POST":
+                response = httpx.post(url, timeout=timeout, **kwargs)
+            else:
+                response = httpx.get(url, timeout=timeout, **kwargs)
+            response.raise_for_status()
+            return response
+        except (httpx.HTTPError, httpx.TimeoutException) as e:
+            if attempt < MAX_RETRIES - 1:
+                delay = RETRY_DELAYS[attempt]
+                print(f"[pathway] Request failed (attempt {attempt + 1}/{MAX_RETRIES}), retrying in {delay}s... ({e})")
+                time.sleep(delay)
+            else:
+                print(f"[pathway] All {MAX_RETRIES} attempts failed: {e}")
+                return None
+    return None
 
 
 def run_pathway(config_path: str) -> str:
@@ -58,52 +98,46 @@ def run_pathway(config_path: str) -> str:
 
     # Step 2: Submit to Reactome API
     print("[pathway] Submitting genes to Reactome Analysis Service...")
-    
-    try:
-        # Join genes with newlines.
-        payload = "\n".join(genes_to_map)
-        
-        # Explicitly set Content-Type to text/plain as required by Reactome
-        headers = {"Content-Type": "text/plain"}
-        
-        # We use projection to get the token
-        response = httpx.post(
-            f"{REACTOME_API_URL}/identifiers/projection",
-            content=payload,
-            headers=headers,
-            params={"pageSize": 1, "page": 1}, 
-            timeout=30.0
-        )
-        response.raise_for_status()
-        
-        analysis_data = response.json()
 
-        print(f"[pathway] Analysis data:\n{analysis_data}")
+    # Join genes with newlines
+    payload = "\n".join(genes_to_map)
 
-        token = analysis_data['summary']['token']
-        print(f"[pathway] Analysis token received: {token}")
-        
-    except httpx.HTTPError as e:
-        print(f"[pathway] Error querying Reactome API: {e}")
-        # Build empty df so pipeline doesn't crash completely
+    # Explicitly set Content-Type to text/plain as required by Reactome
+    headers = {"Content-Type": "text/plain"}
+
+    # We use projection to get the token (with retry logic)
+    response = _request_with_retry(
+        "POST",
+        f"{REACTOME_API_URL}/identifiers/projection",
+        timeout=30.0,
+        content=payload,
+        headers=headers,
+        params={"pageSize": 1, "page": 1}
+    )
+
+    if response is None:
+        print("[pathway] Failed to query Reactome API after retries")
         pd.DataFrame(columns=['gene', 'pathway_count', 'top_pathways']).to_csv(output_path, index=False)
         return output_path
 
+    analysis_data = response.json()
+    print(f"[pathway] Analysis submitted successfully")
+
+    token = analysis_data['summary']['token']
+    print(f"[pathway] Analysis token received: {token}")
+
     # Step 3: Fetch pathways for each gene (mapping)
     print("[pathway] Retrieving gene-to-pathway mappings...")
-    
-    try:
-        # Download results as CSV to get the mapping
-        # Endpoint: /download/{token}/pathways/TOTAL/result.csv
-        
-        mapping_response = httpx.get(
-            f"{REACTOME_API_URL}/download/{token}/pathways/TOTAL/result.csv",
-            timeout=60.0
-        )
-        mapping_response.raise_for_status()
-        
-    except httpx.HTTPError as e:
-        print(f"[pathway] Error retrieving results: {e}")
+
+    # Download results as CSV (with retry logic)
+    mapping_response = _request_with_retry(
+        "GET",
+        f"{REACTOME_API_URL}/download/{token}/pathways/TOTAL/result.csv",
+        timeout=60.0
+    )
+
+    if mapping_response is None:
+        print("[pathway] Failed to retrieve results after retries")
         pd.DataFrame(columns=['gene', 'pathway_count', 'top_pathways']).to_csv(output_path, index=False)
         return output_path
 
@@ -186,11 +220,11 @@ def run_pathway(config_path: str) -> str:
     
     # Iterate through original candidates to preserve order
     if 'gene_symbol' in candidates_df.columns:
-         original_symbols = candidates_df['gene_symbol'].tolist()
-         original_ids = candidates_df['gene'].tolist()
+        original_symbols = candidates_df['gene_symbol'].tolist()
+        original_ids = candidates_df['gene'].tolist()
     else:
-         original_ids = candidates_df['gene'].tolist()
-         original_symbols = original_ids
+        original_ids = candidates_df['gene'].tolist()
+        original_symbols = original_ids
 
     for i, gene_id in enumerate(original_ids):
         symbol = str(original_symbols[i])

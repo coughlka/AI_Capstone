@@ -1,29 +1,39 @@
 """
-Web app for the Biomarker Cancer Project
+CRC Biomarker Evidence Browser - Web Application
+
+Browse and explore colorectal cancer biomarker candidates from the
+AI_Capstone pipeline outputs.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+
+from api import biomarkers
 from config import config
-from api import patient_data
 
 # Create FastAPI app
 app = FastAPI(
-    title="Biomarker Cancer",
-    description="Web app for the Biomarker Cancer app",
-    version="0.1.0"
+    title="CRC Biomarker Evidence Browser",
+    description="Browse and explore colorectal cancer biomarker candidates",
+    version="1.0.0"
 )
 
-app.include_router(patient_data.router)
+# Include biomarker API routes
+app.include_router(biomarkers.router)
 
-# Add CORS middleware (allows frontend to connect from different port)
+# CORS middleware - restricted to specific origins for security
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:8000",
+        "http://localhost:8080",
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8080",
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],  # Read-only API (POST only for reload)
+    allow_headers=["Content-Type"],
 )
 
 # Mount static files
@@ -32,27 +42,18 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 async def root():
-    """Serve the UI"""
+    """Serve the Evidence Browser UI."""
     return FileResponse("static/index.html")
-
-
-@app.get("/api")
-async def api_info():
-    """API info endpoint"""
-    return {
-        "name": "Biomarker Cancer",
-        "version": "0.1.0",
-        "status": "running"
-    }
 
 
 @app.get("/health")
 async def health():
-    """Health check endpoint"""
+    """Health check endpoint."""
     return {"status": "healthy"}
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=config.BACKEND_PORT)
+    port = int(config.BACKEND_PORT) if config.BACKEND_PORT else 8000
+    uvicorn.run(app, host="0.0.0.0", port=port)
