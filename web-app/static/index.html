@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRC Biomarker Evidence Browser</title>
+    <link rel="stylesheet" href="static/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>CRC Biomarker Evidence Browser</h1>
+            <p>Colorectal cancer biomarker candidates ranked by multi-evidence scoring</p>
+        </header>
+
+        <!-- Stats Summary -->
+        <div id="statsContainer" class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-value" id="totalGenes">--</span>
+                <span class="stat-label">Total Genes</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="significantGenes">--</span>
+                <span class="stat-label">Significant (FDR&lt;0.05)</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="scoreRange">--</span>
+                <span class="stat-label">Score Range</span>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <div class="filter-group">
+                <label for="search">Search Gene</label>
+                <input type="text" id="search" placeholder="e.g., KRAS, ENSG00000..." />
+            </div>
+            <div class="filter-group">
+                <label for="direction">Direction</label>
+                <select id="direction">
+                    <option value="">All</option>
+                    <option value="up">Upregulated</option>
+                    <option value="down">Downregulated</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="minScore">Min Score: <span id="minScoreValue">0</span></label>
+                <input type="range" id="minScore" min="0" max="100" value="0" />
+            </div>
+            <div class="filter-group">
+                <button id="applyFilters" class="btn-primary">Apply Filters</button>
+                <button id="resetFilters" class="btn-secondary">Reset</button>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="table-container">
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th data-sort="gene">Gene ID</th>
+                        <th data-sort="gene_symbol">Symbol</th>
+                        <th data-sort="final_score">Final Score</th>
+                        <th data-sort="omics_score">Omics</th>
+                        <th data-sort="literature_score">Literature</th>
+                        <th data-sort="pathway_score">Pathway</th>
+                        <th data-sort="log2fc">Log2FC</th>
+                        <th data-sort="direction">Direction</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                    <tr>
+                        <td colspan="9" class="loading">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+            <button id="prevPage" disabled>&laquo; Previous</button>
+            <span id="pageInfo">Page 1 of 1</span>
+            <button id="nextPage" disabled>Next &raquo;</button>
+        </div>
+
+        <!-- Gene Detail Modal -->
+        <div id="modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="modal-close">&times;</span>
+                <h2 id="modalTitle">Gene Details</h2>
+                <div id="modalBody">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="static/script.js"></script>
+</body>
+
+</html>

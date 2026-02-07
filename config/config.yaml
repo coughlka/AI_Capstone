@@ -25,6 +25,7 @@ pubmed:
 
 pathway:
   source: reactome
+  fdr_threshold: 0.05
 
 scoring:
   weights:
