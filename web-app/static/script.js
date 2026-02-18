@@ -217,6 +217,7 @@ function renderGeneDetails(data) {
     const scores = data.scores || {};
     const omics = data.omics_evidence || {};
     const pathway = data.pathway_evidence || {};
+    const llm = data.llm_analysis || null;
 
     return `
         <div class="detail-section">
@@ -240,6 +241,20 @@ function renderGeneDetails(data) {
                 </div>
             </div>
         </div>
+
+        ${llm ? `
+        <div class="detail-section">
+            <h3>AI Literature Analysis</h3>
+            <div class="llm-analysis">
+                <div class="llm-score-badge">
+                    <span class="llm-score-label">Relevance Score</span>
+                    <span class="llm-score-value">${llm.score}/100</span>
+                </div>
+                <p class="llm-rationale">${llm.rationale || 'No rationale available'}</p>
+                <p class="llm-note">Scored by Claude based on PubMed abstract analysis</p>
+            </div>
+        </div>
+        ` : ''}
 
         <div class="detail-section">
             <h3>Omics Evidence</h3>

@@ -41,6 +41,12 @@ def _load_data():
         else:
             _data_cache["pathway"] = pd.DataFrame()
 
+        llm_path = os.path.join(OUTPUTS_DIR, "llm_scores.csv")
+        if os.path.exists(llm_path):
+            _data_cache["llm"] = pd.read_csv(llm_path)
+        else:
+            _data_cache["llm"] = pd.DataFrame()
+
         # Merge gene symbols from omics into ranked if available
         omics = _data_cache["omics"]
         if not omics.empty and "gene_symbol" in omics.columns:
@@ -145,6 +151,18 @@ async def get_gene_detail(gene_id: str):
         if not pathway_row.empty:
             pathway_evidence = pathway_row.iloc[0].where(pd.notna(pathway_row.iloc[0]), None).to_dict()
 
+    # Get LLM literature analysis
+    llm = data.get("llm", pd.DataFrame())
+    llm_analysis = None
+    if not llm.empty:
+        llm_row = llm[llm["gene"] == gene_id]
+        if not llm_row.empty:
+            row = llm_row.iloc[0]
+            llm_analysis = {
+                "score": int(row["llm_score"]) if pd.notna(row.get("llm_score")) else None,
+                "rationale": str(row["rationale"]) if pd.notna(row.get("rationale")) else None,
+            }
+
     return {
         "gene": gene_id,
         "gene_symbol": omics_evidence.get("gene_symbol") if omics_evidence else None,
@@ -155,7 +173,8 @@ async def get_gene_detail(gene_id: str):
             "pathway": gene_data.get("pathway_score")
         },
         "omics_evidence": omics_evidence,
-        "pathway_evidence": pathway_evidence
+        "pathway_evidence": pathway_evidence,
+        "llm_analysis": llm_analysis
     }
 
 

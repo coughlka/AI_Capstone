@@ -7,11 +7,12 @@ import sys
 from src.omics import run_omics
 from src.pubmed import run_pubmed
 from src.pathway import run_pathway
+from src.llm_scoring import run_llm_scoring
 from src.scoring import run_scoring
 
 
 def main():
-    """Run the full pipeline: omics -> pubmed -> pathway -> scoring."""
+    """Run the full pipeline: omics -> pubmed -> pathway -> llm_scoring -> scoring."""
     parser = argparse.ArgumentParser(
         description="Run the gene prioritization pipeline."
     )
@@ -29,22 +30,27 @@ def main():
 
     try:
         # Step 1: Omics
-        print("\n[Step 1/4] Running omics module...")
+        print("\n[Step 1/5] Running omics module...")
         omics_output = run_omics(config_path)
         print(f"  Output: {omics_output}")
 
         # Step 2: PubMed
-        print("\n[Step 2/4] Running pubmed module...")
+        print("\n[Step 2/5] Running pubmed module...")
         pubmed_output = run_pubmed(config_path)
         print(f"  Output: {pubmed_output}")
 
         # Step 3: Pathway
-        print("\n[Step 3/4] Running pathway module...")
+        print("\n[Step 3/5] Running pathway module...")
         pathway_output = run_pathway(config_path)
         print(f"  Output: {pathway_output}")
 
-        # Step 4: Scoring
-        print("\n[Step 4/4] Running scoring module...")
+        # Step 4: LLM Scoring
+        print("\n[Step 4/5] Running LLM literature scoring...")
+        llm_output = run_llm_scoring(config_path)
+        print(f"  Output: {llm_output}")
+
+        # Step 5: Scoring
+        print("\n[Step 5/5] Running scoring module...")
         scoring_output = run_scoring(config_path)
         print(f"  Output: {scoring_output}")
 
@@ -54,6 +60,7 @@ def main():
         print(f"  - {omics_output}")
         print(f"  - {pubmed_output}")
         print(f"  - {pathway_output}")
+        print(f"  - {llm_output}")
         print(f"  - {scoring_output}")
 
     except FileNotFoundError as e:

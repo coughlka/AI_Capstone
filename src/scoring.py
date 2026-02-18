@@ -129,11 +129,25 @@ def run_scoring(config_path: str) -> str:
         scored = omics_df[['gene']].copy()
         scored['omics_score'] = 0.0
 
-    # Compute literature_score: count rows per gene in lit_evidence, normalize to 0-100
+    # Compute literature_score: use LLM scores if available, fall back to counts
+    llm_scores_path = os.path.join(outputs_dir, 'llm_scores.csv')
     print("[scoring] Computing literature scores...")
-    if lit_df.empty:
+    if os.path.exists(llm_scores_path):
+        llm_df = read_csv(llm_scores_path)
+        if not llm_df.empty and 'llm_score' in llm_df.columns:
+            print("[scoring] Using LLM-based literature scores")
+            llm_scores = llm_df[['gene', 'llm_score']].copy()
+            scored = scored.merge(llm_scores, on='gene', how='left')
+            scored['llm_score'] = scored['llm_score'].fillna(0)
+            scored['literature_score'] = scored['llm_score']
+            scored = scored.drop(columns=['llm_score'])
+        else:
+            print("[scoring] LLM scores file empty, falling back to count-based scoring")
+            scored['literature_score'] = 0.0
+    elif lit_df.empty:
         scored['literature_score'] = 0.0
     else:
+        print("[scoring] No LLM scores found, using count-based literature scoring")
         lit_counts = lit_df.groupby('gene').size().reset_index(name='lit_count')
         scored = scored.merge(lit_counts, on='gene', how='left')
         scored['lit_count'] = scored['lit_count'].fillna(0)
