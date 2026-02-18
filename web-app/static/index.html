@@ -32,6 +32,30 @@
             </div>
         </div>
 
+        <!-- Validation Summary -->
+        <div id="validationContainer" class="validation-panel" style="display:none;">
+            <h3>Known CRC Biomarker Validation</h3>
+            <div class="validation-grid">
+                <div class="validation-stat">
+                    <span class="validation-value" id="valFound">--</span>
+                    <span class="validation-label">Known Biomarkers Found</span>
+                </div>
+                <div class="validation-stat">
+                    <span class="validation-value" id="valTop500">--</span>
+                    <span class="validation-label">In Top 500</span>
+                </div>
+                <div class="validation-stat">
+                    <span class="validation-value" id="valEnrichment">--</span>
+                    <span class="validation-label">Enrichment vs Random</span>
+                </div>
+                <div class="validation-stat">
+                    <span class="validation-value" id="valMedianRank">--</span>
+                    <span class="validation-label">Median Rank</span>
+                </div>
+            </div>
+            <div id="valTopGenes" class="validation-top-genes"></div>
+        </div>
+
         <!-- Filters -->
         <div class="filters">
             <div class="filter-group">
