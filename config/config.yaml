@@ -17,15 +17,23 @@ candidates:
   output_path: outputs/candidates.csv
 
 pubmed:
-  max_abstracts_per_gene: 20
+  email: azc6461@psu.edu
+  tool: biomarker-ranker
+  api_key: "54270c921b5f22b9701eaca6768a71430c08"
+  max_abstracts_per_gene: 5
   query_templates:
     - "colorectal cancer {gene}"
     - "colon cancer {gene}"
     - "rectal cancer {gene}"
 
 pathway:
-  source: reactome
+  source: gprofiler
   fdr_threshold: 0.05
+  sources:
+    - "GO:BP"
+    - "KEGG"
+    - "REAC"
+    - "WP"
 
 scoring:
   weights:

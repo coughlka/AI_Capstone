@@ -87,6 +87,25 @@
             <button id="nextPage" disabled>Next &raquo;</button>
         </div>
 
+        <!-- Chat Panel -->
+        <div id="chatPanel" class="chat-panel collapsed">
+            <div class="chat-header" onclick="toggleChat()">
+                <span class="chat-title">Ask about the data</span>
+                <span id="chatToggle" class="chat-toggle">+</span>
+            </div>
+            <div class="chat-body">
+                <div id="chatMessages" class="chat-messages">
+                    <div class="chat-message assistant">
+                        <div class="chat-bubble">Hi! I can answer questions about the biomarker candidates, gene expression data, and scoring results. What would you like to know?</div>
+                    </div>
+                </div>
+                <div class="chat-input-row">
+                    <input type="text" id="chatInput" placeholder="Ask a question..." />
+                    <button id="chatSend" class="btn-primary" onclick="sendChatMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Gene Detail Modal -->
         <div id="modal" class="modal hidden">
             <div class="modal-content">

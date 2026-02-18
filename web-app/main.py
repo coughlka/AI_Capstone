@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from api import biomarkers
+from api import biomarkers, chat
 from config import config
 
 # Create FastAPI app
@@ -21,6 +21,7 @@ app = FastAPI(
 
 # Include biomarker API routes
 app.include_router(biomarkers.router)
+app.include_router(chat.router)
 
 # CORS middleware - restricted to specific origins for security
 app.add_middleware(
