@@ -11,3 +11,6 @@ pandas
 numpy
 scipy
 pyyaml
+
+# LLM chat feature
+anthropic

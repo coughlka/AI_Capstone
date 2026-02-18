@@ -7,6 +7,9 @@ let currentPage = 1;
 let totalPages = 1;
 let currentSort = 'final_score';
 let currentSortOrder = 'desc';
+let chatHistory = [];
+let chatGeneContext = null;
+let isChatOpen = false;
 
 // DOM Elements
 const resultsBody = document.getElementById('resultsBody');
@@ -178,6 +181,7 @@ function renderTable(candidates) {
             </td>
             <td>
                 <button class="btn-small" onclick="showGeneDetails('${c.gene}')">View</button>
+                <button class="btn-ask" onclick="askAboutGene('${c.gene}', '${c.gene_symbol || c.gene}')">Ask</button>
             </td>
         </tr>
     `).join('');
@@ -294,3 +298,104 @@ function truncate(str, maxLen) {
     if (!str) return '-';
     return str.length > maxLen ? str.substring(0, maxLen) + '...' : str;
 }
+
+// Chat functions
+function toggleChat() {
+    const panel = document.getElementById('chatPanel');
+    const toggle = document.getElementById('chatToggle');
+    isChatOpen = !isChatOpen;
+    if (isChatOpen) {
+        panel.classList.remove('collapsed');
+        toggle.textContent = '\u2212';
+        document.getElementById('chatInput').focus();
+    } else {
+        panel.classList.add('collapsed');
+        toggle.textContent = '+';
+    }
+}
+
+function appendChatMessage(role, content) {
+    const messages = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = `chat-message ${role}`;
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    bubble.textContent = content;
+    div.appendChild(bubble);
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    return bubble;
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    if (!message) return;
+
+    // Show user message
+    appendChatMessage('user', message);
+    input.value = '';
+
+    // Show loading indicator
+    const loadingBubble = appendChatMessage('assistant', 'Thinking...');
+    loadingBubble.classList.add('loading');
+
+    // Add to history
+    chatHistory.push({ role: 'user', content: message });
+
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: message,
+                history: chatHistory.slice(-20),
+                gene_context: chatGeneContext
+            })
+        });
+
+        // Remove loading indicator
+        loadingBubble.parentElement.remove();
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.detail || 'Chat request failed');
+        }
+
+        const data = await response.json();
+        appendChatMessage('assistant', data.response);
+        chatHistory.push({ role: 'assistant', content: data.response });
+    } catch (error) {
+        loadingBubble.parentElement.remove();
+        appendChatMessage('assistant', 'Error: ' + error.message);
+    }
+
+    // Clear gene context after sending
+    chatGeneContext = null;
+}
+
+function askAboutGene(geneId, geneSymbol) {
+    chatGeneContext = geneId;
+
+    // Open chat if closed
+    if (!isChatOpen) {
+        toggleChat();
+    }
+
+    // Pre-fill input
+    const input = document.getElementById('chatInput');
+    input.value = `Tell me about ${geneSymbol}`;
+    input.focus();
+}
+
+// Chat input Enter key handler
+document.addEventListener('DOMContentLoaded', () => {
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+    }
+});
