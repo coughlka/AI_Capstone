@@ -71,7 +71,7 @@ def _build_gene_prompt(gene_symbol: str, abstracts: list[dict]) -> str:
     """Build the user prompt for a single gene."""
     parts = [f"Gene: {gene_symbol}\n\nAbstracts:"]
     for i, ab in enumerate(abstracts, 1):
-        parts.append(f"\n[{i}] {ab['title']}\n{ab['snippet']}")
+        parts.append(f"\n[{i}] {ab['title']}\n{ab['abstract']}")
     return "\n".join(parts)
 
 
@@ -142,7 +142,7 @@ def run_llm_scoring(config_path: str) -> str:
             grouped[gene] = []
         grouped[gene].append({
             "title": str(row.get("title", "")),
-            "snippet": str(row.get("snippet", "")),
+            "abstract": str(row.get("abstract", "")),
         })
 
     # Initialize Anthropic client

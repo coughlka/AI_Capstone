@@ -82,13 +82,13 @@ class TestBuildGenePrompt:
 
     def test_gene_symbol_in_prompt(self):
         """If the gene symbol is missing, Claude can't identify what it's scoring."""
-        prompt = _build_gene_prompt("KRAS", [{"title": "T1", "snippet": "S1"}])
+        prompt = _build_gene_prompt("KRAS", [{"title": "T1", "abstract": "S1"}])
         assert "KRAS" in prompt
 
     def test_all_abstracts_included(self):
         """If abstracts are silently dropped, the LLM scores on partial evidence."""
         abstracts = [
-            {"title": f"Title {i}", "snippet": f"Snippet {i}"}
+            {"title": f"Title {i}", "abstract": f"Snippet {i}"}
             for i in range(5)
         ]
         prompt = _build_gene_prompt("APC", abstracts)
@@ -99,9 +99,9 @@ class TestBuildGenePrompt:
     def test_abstracts_are_numbered(self):
         """Numbered abstracts help the LLM reference specific evidence in rationale."""
         abstracts = [
-            {"title": "First", "snippet": "S1"},
-            {"title": "Second", "snippet": "S2"},
-            {"title": "Third", "snippet": "S3"},
+            {"title": "First", "abstract": "S1"},
+            {"title": "Second", "abstract": "S2"},
+            {"title": "Third", "abstract": "S3"},
         ]
         prompt = _build_gene_prompt("TP53", abstracts)
         assert "[1]" in prompt

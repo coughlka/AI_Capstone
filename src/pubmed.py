@@ -147,13 +147,6 @@ def _build_query(gene_symbol: str, templates: List[str]) -> str:
     return f'("{gene_symbol}"[Title/Abstract] OR "{gene_symbol}"[All Fields])'
 
 
-def _snippet(abstract: str, max_len: int = 300) -> str:
-    """First max_len chars of abstract as a snippet."""
-    if len(abstract) <= max_len:
-        return abstract
-    return abstract[:max_len].rsplit(" ", 1)[0] + "..."
-
-
 def run_pubmed(config_path: str) -> str:
     """Run the PubMed literature search pipeline step.
 
@@ -179,7 +172,7 @@ def run_pubmed(config_path: str) -> str:
     print(f"[pubmed] Reading candidate list from: {candidate_list_path}")
     if not os.path.exists(candidate_list_path):
         print(f"[pubmed] Warning: Candidate list not found at {candidate_list_path}. Creating empty output.")
-        pd.DataFrame(columns=['gene', 'pmid', 'year', 'title', 'snippet']).to_csv(output_path, index=False)
+        pd.DataFrame(columns=['gene', 'pmid', 'year', 'title', 'abstract']).to_csv(output_path, index=False)
         return output_path
 
     candidates_df = pd.read_csv(candidate_list_path)
@@ -243,13 +236,13 @@ def run_pubmed(config_path: str) -> str:
                 'pmid': rec['pmid'],
                 'year': rec['year'],
                 'title': rec['title'],
-                'snippet': _snippet(rec['abstract']),
+                'abstract': rec['abstract'],
             })
 
         if (i + 1) % 50 == 0 or i == 0:
             print(f"[pubmed] [{i+1}/{total}] {symbol_str}: {len(pmids)} abstracts")
 
-    lit_evidence = pd.DataFrame(rows) if rows else pd.DataFrame(columns=['gene', 'pmid', 'year', 'title', 'snippet'])
+    lit_evidence = pd.DataFrame(rows) if rows else pd.DataFrame(columns=['gene', 'pmid', 'year', 'title', 'abstract'])
 
     unique_genes = lit_evidence['gene'].nunique() if not lit_evidence.empty else 0
     print(f"[pubmed] Retrieved {len(lit_evidence)} abstracts for {unique_genes} genes")

@@ -106,8 +106,8 @@ def sample_lit_df():
         ("ENSG00000112715", "VEGFA in tumor angiogenesis", "VEGFA promotes angiogenesis in various solid tumors including colorectal cancer."),
         ("ENSG00000148773", "Ki-67 proliferation index", "MKI67 is a general proliferation marker used across multiple cancer types."),
     ]
-    for gene_id, title, snippet in genes_with_lit:
-        rows.append({"gene": gene_id, "pmid": f"PM{hash(gene_id) % 100000}", "year": "2023", "title": title, "snippet": snippet})
+    for gene_id, title, abstract in genes_with_lit:
+        rows.append({"gene": gene_id, "pmid": f"PM{hash(gene_id) % 100000}", "year": "2023", "title": title, "abstract": abstract})
     return pd.DataFrame(rows)
 
 

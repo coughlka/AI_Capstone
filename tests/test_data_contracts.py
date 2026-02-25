@@ -16,7 +16,7 @@ import pytest
 
 OMICS_REQUIRED_COLUMNS = {"gene", "gene_symbol", "log2fc", "p_value", "fdr", "direction", "tumor_mean", "normal_mean", "dataset"}
 CANDIDATES_REQUIRED_COLUMNS = {"gene", "gene_symbol", "log2fc", "fdr", "direction", "rank"}
-LIT_EVIDENCE_REQUIRED_COLUMNS = {"gene", "pmid", "year", "title", "snippet"}
+LIT_EVIDENCE_REQUIRED_COLUMNS = {"gene", "pmid", "year", "title", "abstract"}
 LLM_SCORES_REQUIRED_COLUMNS = {"gene", "gene_symbol", "llm_score", "rationale"}
 PATHWAY_REQUIRED_COLUMNS = {"gene", "pathway_count", "top_pathways"}
 RANKED_REQUIRED_COLUMNS = {"gene", "final_score", "omics_score", "literature_score", "pathway_score"}
