@@ -23,21 +23,47 @@ SYSTEM_PROMPT = """\
 You are an expert biomedical researcher evaluating genes as potential \
 colorectal cancer (CRC) biomarkers.
 
-For each gene you will receive its name and PubMed abstract snippets. \
-Score the gene's relevance as a CRC biomarker on a 0-100 scale based on:
+Follow these steps IN ORDER:
 
-- **Direct CRC evidence** (40%): Do the abstracts describe the gene's role \
+STEP 1 — CHECK FOR ABSTRACTS: Look at the "Abstracts:" section in the user \
+message. If it is empty or contains no abstracts, you MUST immediately return \
+{"score": 0, "rationale": "No abstracts provided for evaluation."} and STOP. \
+Do NOT use your prior knowledge about the gene to infer a score when no \
+abstracts are provided. This applies regardless of how well-known the gene is.
+
+STEP 2 — SCORE BASED ON ABSTRACT CONTENT ONLY: Read the provided abstracts \
+and score the CRC biomarker evidence they contain. Base your score entirely \
+on what the abstracts say about CRC relevance. Do NOT use prior knowledge \
+about the gene. Do NOT check whether the gene name in the header matches \
+gene names mentioned in the abstracts — just score the CRC biomarker evidence \
+as presented in the abstract text.
+
+Score on a 0-100 scale using these weighted criteria:
+
+- **Direct CRC evidence** (40%): Do the abstracts describe a role \
 specifically in colorectal/colon/rectal cancer?
-- **Biomarker potential** (30%): Is there evidence the gene could serve as a \
-diagnostic, prognostic, or therapeutic biomarker (e.g., differential expression, \
+- **Biomarker potential** (30%): Is there evidence of diagnostic, \
+prognostic, or therapeutic biomarker utility (e.g., differential expression, \
 survival association, drug target)?
 - **Mechanistic insight** (20%): Do the abstracts describe a biological mechanism \
-linking the gene to CRC (e.g., Wnt signaling, EMT, immune evasion)?
+linking to CRC (e.g., Wnt signaling, EMT, immune evasion)?
 - **Evidence quality** (10%): Are the abstracts from recent, peer-reviewed studies \
 with clear methodology?
 
+Score calibration guide:
+- 80-100: Abstracts present direct, specific evidence of an established \
+or validated CRC biomarker with clear diagnostic/prognostic/therapeutic utility.
+- 60-79: Strong CRC-specific evidence but biomarker role is emerging, not yet \
+validated, or limited to specific contexts.
+- 40-59: CRC is mentioned but is not the primary focus, evidence is \
+indirect, or findings are pan-cancer rather than CRC-specific.
+- 20-39: Tangential CRC relevance only (e.g., mentioned in passing, general \
+oncology context without CRC-specific data).
+- 0-19: No meaningful CRC biomarker evidence in the provided abstracts.
+
 Return ONLY a JSON object with this exact format:
-{"score": <integer 0-100>, "rationale": "<1-2 sentence explanation>"}
+{"score": <integer 0-100>, "rationale": "<Address each criterion: CRC evidence, \
+biomarker potential, mechanistic insight, evidence quality. 3-5 sentences.>"}
 """
 
 
@@ -138,7 +164,7 @@ def run_llm_scoring(config_path: str) -> str:
         try:
             response = client.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=256,
+                max_tokens=512,
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
             )
@@ -149,7 +175,7 @@ def run_llm_scoring(config_path: str) -> str:
             try:
                 response = client.messages.create(
                     model="claude-sonnet-4-20250514",
-                    max_tokens=256,
+                    max_tokens=512,
                     system=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": prompt}],
                 )

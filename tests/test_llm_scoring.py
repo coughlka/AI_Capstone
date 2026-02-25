@@ -145,3 +145,27 @@ class TestSystemPrompt:
         assert "JSON" in SYSTEM_PROMPT
         assert '"score"' in SYSTEM_PROMPT
         assert '"rationale"' in SYSTEM_PROMPT
+
+    def test_evidence_only_instruction_present(self):
+        """Without this instruction, the LLM uses prior knowledge about gene names
+        instead of scoring based on the provided abstracts. This was the root cause
+        of the gene name swap test failing (KRAS abstracts labeled GAPDH → scored 15)."""
+        assert "ONLY" in SYSTEM_PROMPT
+        assert "prior knowledge" in SYSTEM_PROMPT.lower()
+
+    def test_calibration_anchors_present(self):
+        """Without calibration anchors, the LLM inflated moderate-evidence genes
+        (VEGFA, MKI67) to 75 when they should have been 30-70. The anchors define
+        what each score range means concretely."""
+        assert "80-100" in SYSTEM_PROMPT
+        assert "60-79" in SYSTEM_PROMPT
+        assert "40-59" in SYSTEM_PROMPT
+        assert "20-39" in SYSTEM_PROMPT
+        assert "0-19" in SYSTEM_PROMPT
+
+    def test_no_abstracts_guidance_present(self):
+        """Without this, KRAS with zero abstracts scored 95 purely from
+        prior knowledge. The prompt must explicitly handle the empty case."""
+        # Check that the prompt mentions what to do when no abstracts are provided
+        prompt_lower = SYSTEM_PROMPT.lower()
+        assert "no abstracts" in prompt_lower or "no crc-relevant content" in prompt_lower
