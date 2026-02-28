@@ -1,5 +1,6 @@
 """Biomarker candidate API endpoints."""
 
+import json
 import os
 from typing import Optional
 
@@ -218,6 +219,20 @@ async def get_stats():
                 stats["top_downregulated"] = down["gene_symbol"].dropna().tolist()[:5]
 
     return stats
+
+
+@router.get("/validation")
+async def get_validation():
+    """Get known biomarker validation results."""
+    summary_path = os.path.join(OUTPUTS_DIR, "validation_summary.json")
+    if not os.path.exists(summary_path):
+        raise HTTPException(
+            status_code=404,
+            detail="Validation results not available. Run the validation step first."
+        )
+
+    with open(summary_path) as f:
+        return json.load(f)
 
 
 @router.post("/reload")

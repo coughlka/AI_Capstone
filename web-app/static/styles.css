@@ -421,6 +421,73 @@ tr:hover {
     font-style: italic;
 }
 
+/* Validation Panel */
+.validation-panel {
+    background: var(--card-bg);
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.validation-panel h3 {
+    font-size: 1rem;
+    color: #166534;
+    margin-bottom: 1rem;
+}
+
+.validation-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.validation-stat {
+    text-align: center;
+}
+
+.validation-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #166534;
+}
+
+.validation-label {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.validation-top-label {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+}
+
+.validation-top-genes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.validation-gene {
+    display: inline-block;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #166534;
+}
+
+.validation-gene small {
+    color: #64748b;
+    font-weight: 400;
+}
+
 /* Chat Panel */
 .chat-panel {
     position: fixed;

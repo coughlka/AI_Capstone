@@ -31,6 +31,7 @@ const modalBody = document.getElementById('modalBody');
 document.addEventListener('DOMContentLoaded', () => {
     loadStats();
     loadCandidates();
+    loadValidation();
     setupEventListeners();
 });
 
@@ -120,6 +121,37 @@ async function loadStats() {
             stats.score_range ? `${stats.score_range.min.toFixed(1)} - ${stats.score_range.max.toFixed(1)}` : '--';
     } catch (error) {
         console.error('Error loading stats:', error);
+    }
+}
+
+async function loadValidation() {
+    try {
+        const response = await fetch('/api/validation');
+        if (!response.ok) return; // silently skip if not available
+        const val = await response.json();
+
+        const container = document.getElementById('validationContainer');
+        container.style.display = 'block';
+
+        document.getElementById('valFound').textContent =
+            `${val.found_in_dataset}/${val.total_known_biomarkers}`;
+        document.getElementById('valTop500').textContent = val.in_top_500;
+        document.getElementById('valEnrichment').textContent =
+            val.enrichment_ratio ? `${val.enrichment_ratio}x` : '--';
+        document.getElementById('valMedianRank').textContent =
+            val.median_rank ? val.median_rank.toLocaleString() : '--';
+
+        // Show top known biomarkers
+        const topGenes = val.top_known_biomarkers || [];
+        if (topGenes.length > 0) {
+            const genesHtml = topGenes.map(g =>
+                `<span class="validation-gene">${g.gene_symbol} <small>#${g.rank.toLocaleString()}</small></span>`
+            ).join('');
+            document.getElementById('valTopGenes').innerHTML =
+                `<p class="validation-top-label">Top known biomarkers by rank:</p>${genesHtml}`;
+        }
+    } catch (error) {
+        console.error('Error loading validation:', error);
     }
 }
 
