@@ -86,10 +86,10 @@ def _parse_llm_response(text: str) -> dict:
             result = json.loads(text[start:end])
             score = int(result.get("score", 0))
             score = max(0, min(100, score))
-            return {"score": score, "rationale": result.get("rationale", "")}
+            return {"score": score, "rationale": result.get("rationale", ""), "parse_ok": True}
         except (json.JSONDecodeError, ValueError):
             pass
-    return {"score": 0, "rationale": "Failed to parse LLM response"}
+    return {"score": 0, "rationale": f"PARSE_FAILED: {text[:200]}", "parse_ok": False}
 
 
 def run_llm_scoring(config_path: str) -> str:
@@ -165,6 +165,7 @@ def run_llm_scoring(config_path: str) -> str:
             response = client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=512,
+                temperature=0,
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
             )
@@ -176,6 +177,7 @@ def run_llm_scoring(config_path: str) -> str:
                 response = client.messages.create(
                     model="claude-sonnet-4-20250514",
                     max_tokens=512,
+                    temperature=0,
                     system=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": prompt}],
                 )

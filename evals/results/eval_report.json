@@ -1,0 +1,547 @@
+{
+  "summary": {
+    "timestamp": "2026-02-28T17:28:12.315661+00:00",
+    "model": "claude-sonnet-4-20250514",
+    "total_test_cases": 10,
+    "errors": 0,
+    "accuracy": {
+      "in_range_count": 9,
+      "in_range_rate": 0.9,
+      "by_category": {
+        "true_positive": {
+          "count": 3,
+          "mean_score": 87.3,
+          "in_range_rate": 1.0,
+          "mean_calibration": 9.7
+        },
+        "moderate": {
+          "count": 2,
+          "mean_score": 65,
+          "in_range_rate": 1.0,
+          "mean_calibration": 8.5
+        },
+        "true_negative": {
+          "count": 3,
+          "mean_score": 23.3,
+          "in_range_rate": 0.67,
+          "mean_calibration": 7.3
+        },
+        "edge_no_abstracts": {
+          "count": 1,
+          "mean_score": 0,
+          "in_range_rate": 1.0,
+          "mean_calibration": 10
+        },
+        "edge_conflicting": {
+          "count": 1,
+          "mean_score": 45,
+          "in_range_rate": 1.0,
+          "mean_calibration": 9
+        }
+      }
+    },
+    "judge_scores": {
+      "score_calibration": {
+        "mean": 8.7,
+        "min": 2,
+        "max": 10
+      },
+      "rubric_adherence": {
+        "mean": 8.4,
+        "min": 0,
+        "max": 10
+      },
+      "groundedness": {
+        "mean": 9.8,
+        "min": 9,
+        "max": 10
+      },
+      "format_compliance": {
+        "pass_rate": 1.0
+      }
+    },
+    "consistency": {
+      "mean_std": 0.0,
+      "max_std": 0.0,
+      "unstable_genes": [],
+      "all_stable": true
+    },
+    "robustness": {
+      "pass_count": 12,
+      "total_tests": 13,
+      "pass_rate": 0.92
+    }
+  },
+  "judge_results": [
+    {
+      "gene_symbol": "LY6G6D",
+      "category": "true_positive",
+      "expected_range": [
+        70,
+        100
+      ],
+      "actual_score": 92,
+      "in_expected_range": true,
+      "rationale": "The abstracts provide exceptional direct CRC evidence, with LY6G6D specifically identified as a colorectal cancer-selective antigen that is highly expressed in CRC adenocarcinoma and particularly in microsatellite stable (MSS) tumors. The biomarker potential is outstanding, with clear diagnostic utility (tumor-specific expression, 10% disease recurrence risk with elevated expression), prognostic value (survival analysis via Kaplan-Meier curves), and therapeutic applications (T-cell engagers in early clinical development showing potent tumor cell killing). Mechanistic insights are well-established, describing LY6G6D's role in immune evasion through the AKT/p38\u03b1 signaling pathway, its function as an 'endogenous immunotoxin' that inhibits anti-tumor immunity, and its association with an inert immune microenvironment. The evidence quality is high, with comprehensive bioinformatics analyses using TCGA data, validated experimental approaches including in vivo mouse models, ex vivo patient-derived tumor cultures, and molecular docking studies for drug discovery.",
+      "judge": {
+        "score_calibration": 10,
+        "rubric_adherence": 10,
+        "groundedness": 10,
+        "format_ok": true,
+        "reasoning": "The score of 92 is excellently calibrated within the expected range of 70-100, appropriately reflecting LY6G6D as a well-established CRC biomarker. The rationale systematically addresses all four weighted criteria: direct CRC evidence (highlighting CRC-selective expression and MSS specificity), biomarker potential (diagnostic utility, prognostic value, therapeutic T-cell engagers), mechanistic insight (AKT/p38\u03b1 pathway, immune evasion mechanisms), and evidence quality (TCGA analyses, in vivo models, patient-derived cultures). All factual claims are directly traceable to the provided abstracts, with no apparent hallucinations or unsupported extrapolations. The response follows the exact JSON format specified.",
+        "raw_judge_response": "{\"score_calibration\": 10, \"rubric_adherence\": 10, \"groundedness\": 10, \"format_ok\": true, \"reasoning\": \"The score of 92 is excellently calibrated within the expected range of 70-100, appropriately reflecting LY6G6D as a well-established CRC biomarker. The rationale systematically addresses all four weighted criteria: direct CRC evidence (highlighting CRC-selective expression and MSS specificity), biomarker potential (diagnostic utility, prognostic value, therapeutic T-cell engagers), mechanistic insight (AKT/p38\u03b1 pathway, immune evasion mechanisms), and evidence quality (TCGA analyses, in vivo models, patient-derived cultures). All factual claims are directly traceable to the provided abstracts, with no apparent hallucinations or unsupported extrapolations. The response follows the exact JSON format specified.\"}"
+      }
+    },
+    {
+      "gene_symbol": "SCARA5",
+      "category": "true_positive",
+      "expected_range": [
+        70,
+        100
+      ],
+      "actual_score": 85,
+      "in_expected_range": true,
+      "rationale": "The abstracts provide strong, direct evidence for SCARA5 as a CRC biomarker. CRC evidence is excellent with multiple studies specifically examining SCARA5 in colorectal/colon cancer contexts, demonstrating tumor suppressor functions and downregulation in CRC. Biomarker potential is well-established through associations with tumor stage, lymph node metastasis, patient prognosis, and survival outcomes (OS and DFS), plus therapeutic implications via exosomal delivery and ferroptosis induction. Mechanistic insights are robust, detailing SCARA5's regulation of PI3K/Akt and Wnt/\u03b2-catenin pathways, ferroptosis promotion through FTL interaction, and EMT inhibition. Evidence quality appears strong with recent studies using diverse methodologies including single-cell RNA sequencing, in vivo models, and clinical patient data, though publication details are limited in the abstracts.",
+      "judge": {
+        "score_calibration": 9,
+        "rubric_adherence": 10,
+        "groundedness": 10,
+        "format_ok": true,
+        "reasoning": "The score of 85 is well-calibrated within the expected range (70-100) and appropriately reflects the strong CRC biomarker evidence presented. The rationale systematically addresses all 4 weighted criteria: direct CRC evidence (multiple CRC-specific studies), biomarker potential (stage/prognosis associations, survival outcomes), mechanistic insight (PI3K/Akt, Wnt pathways, ferroptosis), and evidence quality (diverse methodologies, clinical data). All claims are directly supported by the abstracts - from SCARA5's tumor suppressor role and downregulation in CRC to specific pathway mechanisms and survival associations. The response follows the required JSON format correctly.",
+        "raw_judge_response": "```json\n{\n  \"score_calibration\": 9,\n  \"rubric_adherence\": 10,\n  \"groundedness\": 10,\n  \"format_ok\": true,\n  \"reasoning\": \"The score of 85 is well-calibrated within the expected range (70-100) and appropriately reflects the strong CRC biomarker evidence presented. The rationale systematically addresses all 4 weighted criteria: direct CRC evidence (multiple CRC-specific studies), biomarker potential (stage/prognosis associations, survival outcomes), mechanistic insight (PI3K/Akt, Wnt pathways, ferroptosis), and evidence quality (diverse methodologies, clinical data). All claims are directly supported by the abstracts - from SCARA5's tumor suppressor role and downregulation in CRC to specific pathway mechanisms and survival associations. The response follows the required JSON format correctly.\"\n}\n```"
+      }
+    },
+    {
+      "gene_symbol": "DPYD",
+      "category": "true_positive",
+      "expected_range": [
+        70,
+        100
+      ],
+      "actual_score": 85,
+      "in_expected_range": true,
+      "rationale": "The abstracts provide strong, direct evidence for DPYD as a CRC biomarker. Multiple studies demonstrate DPYD's critical role in colorectal cancer treatment through pharmacogenomic testing to predict fluoropyrimidine toxicity. The biomarker potential is well-established, with DPYD variants directly influencing treatment decisions, dosing strategies, and patient outcomes in CRC patients receiving 5-FU/capecitabine chemotherapy. The mechanistic insight is clear - DPYD encodes dihydropyrimidine dehydrogenase which metabolizes fluoropyrimidines, and variants affect enzyme activity leading to severe toxicity. The evidence quality is high, featuring recent prospective studies including a large pooled analysis of 4,496 CRC patients with validated predictive models and clinical implementation tools.",
+      "judge": {
+        "score_calibration": 10,
+        "rubric_adherence": 10,
+        "groundedness": 10,
+        "format_ok": true,
+        "reasoning": "The score of 85 is well-calibrated within the expected range of 70-100 for DPYD. The rationale systematically addresses all four weighted criteria: direct CRC evidence (multiple colorectal cancer studies), biomarker potential (pharmacogenomic testing for treatment decisions), mechanistic insight (DPD enzyme metabolism of fluoropyrimidines), and evidence quality (recent prospective studies with large sample sizes). All claims are directly supported by the provided abstracts, with no unsupported extrapolations or hallucinations. The response follows the required JSON format perfectly.",
+        "raw_judge_response": "{\"score_calibration\": 10, \"rubric_adherence\": 10, \"groundedness\": 10, \"format_ok\": true, \"reasoning\": \"The score of 85 is well-calibrated within the expected range of 70-100 for DPYD. The rationale systematically addresses all four weighted criteria: direct CRC evidence (multiple colorectal cancer studies), biomarker potential (pharmacogenomic testing for treatment decisions), mechanistic insight (DPD enzyme metabolism of fluoropyrimidines), and evidence quality (recent prospective studies with large sample sizes). All claims are directly supported by the provided abstracts, with no unsupported extrapolations or hallucinations. The response follows the required JSON format perfectly.\"}"
+      }
+    },
+    {
+      "gene_symbol": "GSTM5",
+      "category": "moderate",
+      "expected_range": [
+        30,
+        80
+      ],
+      "actual_score": 65,
+      "in_expected_range": true,
+      "rationale": "The abstracts provide strong CRC-specific evidence with GSTM5 appearing in multiple colorectal cancer studies. Direct CRC evidence is substantial, with abstracts 1, 2, and 4 focusing specifically on colorectal cancer, showing GSTM5's role in oxaliplatin treatment outcomes, tumor progression via circRNA regulation, and as part of a metabolism-based prognostic model. Biomarker potential is demonstrated through prognostic associations with chemotherapy response, diagnostic performance (AUC 0.806-0.874), and inclusion in survival prediction models. Mechanistic insights include GSTM5's involvement in the miR-20b-3p/AKT/mTOR pathway and metabolism-related processes in CRC progression. However, the evidence quality is mixed - while studies appear methodologically sound, abstract 1 notes that associations didn't survive multiple testing correction, and the biomarker role appears emerging rather than fully validated.",
+      "judge": {
+        "score_calibration": 8,
+        "rubric_adherence": 9,
+        "groundedness": 10,
+        "format_ok": true,
+        "reasoning": "Score calibration is good - 65 falls well within the expected 30-80 range and appropriately reflects emerging CRC biomarker evidence. Rubric adherence is strong, explicitly addressing all 4 criteria (Direct CRC evidence, biomarker potential, mechanistic insight, evidence quality) with specific details from abstracts. Groundedness is excellent - all claims are directly traceable to the provided abstracts, including specific AUC values, pathway details, and study limitations. Format compliance is perfect with valid JSON structure.",
+        "raw_judge_response": "```json\n{\"score_calibration\": 8, \"rubric_adherence\": 9, \"groundedness\": 10, \"format_ok\": true, \"reasoning\": \"Score calibration is good - 65 falls well within the expected 30-80 range and appropriately reflects emerging CRC biomarker evidence. Rubric adherence is strong, explicitly addressing all 4 criteria (Direct CRC evidence, biomarker potential, mechanistic insight, evidence quality) with specific details from abstracts. Groundedness is excellent - all claims are directly traceable to the provided abstracts, including specific AUC values, pathway details, and study limitations. Format compliance is perfect with valid JSON structure.\"}\n```"
+      }
+    },
+    {
+      "gene_symbol": "HDAC9",
+      "category": "moderate",
+      "expected_range": [
+        30,
+        80
+      ],
+      "actual_score": 65,
+      "in_expected_range": true,
+      "rationale": "The abstracts provide strong CRC-specific evidence with HDAC9 directly implicated in colorectal cancer mechanisms and biomarker potential. Abstract 1 demonstrates HDAC9's role in oxaliplatin resistance in FBXW7-mutated CRC, showing therapeutic biomarker utility through PROTAC-based targeting that restored drug sensitivity. Abstract 2 shows differential HDAC9 expression between CRC cells and cancer stem cells, indicating diagnostic biomarker potential. The mechanistic insights are solid, linking HDAC9 to epigenetic regulation, super-enhancer control, and drug resistance pathways in CRC. However, evidence quality is mixed - while some studies use patient-derived organoids and mouse models, the biomarker applications are still emerging rather than clinically validated, and some evidence comes from broader pan-cancer studies rather than CRC-focused research.",
+      "judge": {
+        "score_calibration": 9,
+        "rubric_adherence": 9,
+        "groundedness": 9,
+        "format_ok": true,
+        "reasoning": "The score of 65 is well-calibrated within the expected 30-80 range and appropriate for the evidence presented. The rationale addresses all four criteria effectively: direct CRC evidence (citing HDAC9's role in oxaliplatin resistance and differential expression in CRC vs CSCs), biomarker potential (therapeutic and diagnostic applications), mechanistic insight (epigenetic regulation, super-enhancer control), and evidence quality (acknowledging emerging vs validated status). All claims are well-grounded in the abstracts, with specific references to studies and findings. Only minor deduction for slightly generic phrasing in evidence quality assessment.",
+        "raw_judge_response": "{\"score_calibration\": 9, \"rubric_adherence\": 9, \"groundedness\": 9, \"format_ok\": true, \"reasoning\": \"The score of 65 is well-calibrated within the expected 30-80 range and appropriate for the evidence presented. The rationale addresses all four criteria effectively: direct CRC evidence (citing HDAC9's role in oxaliplatin resistance and differential expression in CRC vs CSCs), biomarker potential (therapeutic and diagnostic applications), mechanistic insight (epigenetic regulation, super-enhancer control), and evidence quality (acknowledging emerging vs validated status). All claims are well-grounded in the abstracts, with specific references to studies and findings. Only minor deduction for slightly generic phrasing in evidence quality assessment.\"}"
+      }
+    },
+    {
+      "gene_symbol": "CNTN2",
+      "category": "true_negative",
+      "expected_range": [
+        0,
+        25
+      ],
+      "actual_score": 25,
+      "in_expected_range": true,
+      "rationale": "The abstracts show limited CRC biomarker evidence. While DCC (deleted in colorectal cancer) is mentioned in abstracts 2, 3, and 4, it is discussed exclusively in the context of axon guidance and neural development, not colorectal cancer. Abstract 1 mentions colon cancer among various tumor types expressing TAG genes, but provides no CRC-specific data or biomarker utility. The mechanistic insights are entirely focused on neural development pathways rather than CRC-relevant mechanisms. The evidence quality appears good with detailed experimental approaches, but none address CRC biomarker potential despite the gene name reference.",
+      "judge": {
+        "score_calibration": 10,
+        "rubric_adherence": 8,
+        "groundedness": 10,
+        "format_ok": true,
+        "reasoning": "Score calibration is perfect - the scorer gave 25, which is at the top of the expected 0-25 range, appropriately reflecting minimal CRC relevance. Rubric adherence is good (8/10) as the rationale addresses CRC evidence (minimal), biomarker potential (none), and evidence quality (good), but mechanistic insight is only briefly mentioned. Groundedness is excellent - all claims are directly supported by the abstracts, correctly noting that DCC appears in neural development context and colon cancer is only mentioned in passing in abstract 1. The scorer properly avoided using prior knowledge about CNTN2 and scored based solely on abstract content.",
+        "raw_judge_response": "```json\n{\n  \"score_calibration\": 10,\n  \"rubric_adherence\": 8,\n  \"groundedness\": 10,\n  \"format_ok\": true,\n  \"reasoning\": \"Score calibration is perfect - the scorer gave 25, which is at the top of the expected 0-25 range, appropriately reflecting minimal CRC relevance. Rubric adherence is good (8/10) as the rationale addresses CRC evidence (minimal), biomarker potential (none), and evidence quality (good), but mechanistic insight is only briefly mentioned. Groundedness is excellent - all claims are directly supported by the abstracts, correctly noting that DCC appears in neural development context and colon cancer is only mentioned in passing in abstract 1. The scorer properly avoided using prior knowledge about CNTN2 and scored based solely on abstract content.\"\n}\n```"
+      }
+    },
+    {
+      "gene_symbol": "UCN3",
+      "category": "true_negative",
+      "expected_range": [
+        0,
+        25
+      ],
+      "actual_score": 45,
+      "in_expected_range": false,
+      "rationale": "The abstracts provide moderate CRC-related evidence but with significant limitations. Direct CRC evidence is present but mixed - abstracts discuss colon cancer and colorectal cancer specifically, with UCN3 mentioned as a differentially expressed gene in colon cancer prognosis models and as part of the CRF signaling pathway involved in colitis-associated cancer. Biomarker potential is emerging but not well-established - UCN3 appears in a machine learning prognostic model for colon cancer and shows differential expression, but its independent biomarker utility is unclear. Mechanistic insight is provided through the CRF2 signaling pathway's role in enterocyte differentiation and intestinal epithelial barrier function, which could relate to CRC development, though the connection is somewhat indirect. Evidence quality is reasonable with recent studies using appropriate methodologies, but UCN3 is often mentioned peripherally rather than as a primary focus of investigation.",
+      "judge": {
+        "score_calibration": 2,
+        "rubric_adherence": 8,
+        "groundedness": 9,
+        "format_ok": true,
+        "reasoning": "The score of 45 is severely miscalibrated - UCN3 appears only peripherally in these abstracts with minimal direct CRC biomarker evidence, warranting a score in the 0-25 range, not 45. However, the rationale excellently addresses all 4 criteria (direct evidence, biomarker potential, mechanistic insight, evidence quality) and is well-grounded in the abstract content, accurately noting UCN3's limited and indirect role.",
+        "raw_judge_response": "```json\n{\"score_calibration\": 2, \"rubric_adherence\": 8, \"groundedness\": 9, \"format_ok\": true, \"reasoning\": \"The score of 45 is severely miscalibrated - UCN3 appears only peripherally in these abstracts with minimal direct CRC biomarker evidence, warranting a score in the 0-25 range, not 45. However, the rationale excellently addresses all 4 criteria (direct evidence, biomarker potential, mechanistic insight, evidence quality) and is well-grounded in the abstract content, accurately noting UCN3's limited and indirect role.\"}\n```"
+      }
+    },
+    {
+      "gene_symbol": "FICTIONAL_GENE_X",
+      "category": "true_negative",
+      "expected_range": [
+        0,
+        15
+      ],
+      "actual_score": 0,
+      "in_expected_range": true,
+      "rationale": "The abstract describes research on zinc finger proteins in Drosophila wing development with no connection to colorectal cancer. There is no CRC evidence, biomarker potential, or mechanistic insight relevant to human cancer. The study focuses entirely on developmental biology in fruit flies, with the authors explicitly noting no mammalian orthologs exist. This provides no meaningful CRC biomarker evidence.",
+      "judge": {
+        "score_calibration": 10,
+        "rubric_adherence": 10,
+        "groundedness": 10,
+        "format_ok": true,
+        "reasoning": "The scorer correctly gave a score of 0, which is perfectly within the expected range of 0-15 for this fictional gene. The rationale systematically addresses all four criteria: no CRC evidence, no biomarker potential, no mechanistic insight relevant to cancer, and acknowledges the study quality while noting irrelevance. All claims are directly supported by the abstract content (Drosophila wing development, no mammalian orthologs). The response format is correct JSON.",
+        "raw_judge_response": "```json\n{\n  \"score_calibration\": 10,\n  \"rubric_adherence\": 10,\n  \"groundedness\": 10,\n  \"format_ok\": true,\n  \"reasoning\": \"The scorer correctly gave a score of 0, which is perfectly within the expected range of 0-15 for this fictional gene. The rationale systematically addresses all four criteria: no CRC evidence, no biomarker potential, no mechanistic insight relevant to cancer, and acknowledges the study quality while noting irrelevance. All claims are directly supported by the abstract content (Drosophila wing development, no mammalian orthologs). The response format is correct JSON.\"\n}\n```"
+      }
+    },
+    {
+      "gene_symbol": "EMPTY_GENE",
+      "category": "edge_no_abstracts",
+      "expected_range": [
+        0,
+        10
+      ],
+      "actual_score": 0,
+      "in_expected_range": true,
+      "rationale": "No abstracts provided for evaluation.",
+      "judge": {
+        "score_calibration": 10,
+        "rubric_adherence": 0,
+        "groundedness": 10,
+        "format_ok": true,
+        "reasoning": "The score of 0 is perfectly calibrated for a case with no abstracts provided, matching the expected 0-10 range. The response correctly follows the explicit instruction to return score 0 when no abstracts are present. However, the rationale completely fails rubric adherence by not addressing any of the 4 required criteria (Direct CRC evidence, Biomarker potential, Mechanistic insight, Evidence quality) - it simply states the procedural reason for the score. The response is fully grounded since it only states the factual condition that no abstracts were provided. Format compliance is correct with valid JSON containing integer score and string rationale.",
+        "raw_judge_response": "{\"score_calibration\": 10, \"rubric_adherence\": 0, \"groundedness\": 10, \"format_ok\": true, \"reasoning\": \"The score of 0 is perfectly calibrated for a case with no abstracts provided, matching the expected 0-10 range. The response correctly follows the explicit instruction to return score 0 when no abstracts are present. However, the rationale completely fails rubric adherence by not addressing any of the 4 required criteria (Direct CRC evidence, Biomarker potential, Mechanistic insight, Evidence quality) - it simply states the procedural reason for the score. The response is fully grounded since it only states the factual condition that no abstracts were provided. Format compliance is correct with valid JSON containing integer score and string rationale.\"}"
+      }
+    },
+    {
+      "gene_symbol": "CONFLICTED_GENE",
+      "category": "edge_conflicting",
+      "expected_range": [
+        20,
+        60
+      ],
+      "actual_score": 45,
+      "in_expected_range": true,
+      "rationale": "The abstracts present conflicting evidence for CONFLICTED_GENE as a CRC biomarker. Direct CRC evidence is strong, with both studies specifically examining colorectal cancer and reporting on expression patterns in tumor vs. normal tissue. Biomarker potential shows mixed results - the pilot study suggests diagnostic and prognostic utility with significant overexpression and stage/prognosis associations, but the larger validation study fails to replicate these findings, showing no independent prognostic value. Mechanistic insight is limited, with no biological pathways or mechanisms described. Evidence quality appears reasonable with what seems to be peer-reviewed studies, including a large multicenter validation cohort, but the conflicting results significantly undermine the overall biomarker evidence.",
+      "judge": {
+        "score_calibration": 9,
+        "rubric_adherence": 10,
+        "groundedness": 10,
+        "format_ok": true,
+        "reasoning": "The score of 45 is well-calibrated within the expected range of 20-60, appropriately reflecting conflicting evidence. The rationale systematically addresses all 4 weighted criteria: direct CRC evidence (noting both studies examine colorectal cancer), biomarker potential (acknowledging pilot study findings vs. validation study failure), mechanistic insight (correctly noting limited pathway information), and evidence quality (recognizing peer-reviewed nature but conflicting results). All claims are directly supported by the provided abstracts with no hallucinations or unsupported statements.",
+        "raw_judge_response": "```json\n{\n  \"score_calibration\": 9,\n  \"rubric_adherence\": 10,\n  \"groundedness\": 10,\n  \"format_ok\": true,\n  \"reasoning\": \"The score of 45 is well-calibrated within the expected range of 20-60, appropriately reflecting conflicting evidence. The rationale systematically addresses all 4 weighted criteria: direct CRC evidence (noting both studies examine colorectal cancer), biomarker potential (acknowledging pilot study findings vs. validation study failure), mechanistic insight (correctly noting limited pathway information), and evidence quality (recognizing peer-reviewed nature but conflicting results). All claims are directly supported by the provided abstracts with no hallucinations or unsupported statements.\"\n}\n```"
+      }
+    }
+  ],
+  "consistency_results": {
+    "results": [
+      {
+        "gene_symbol": "LY6G6D",
+        "category": "true_positive",
+        "scores": [
+          92,
+          92,
+          92
+        ],
+        "mean_score": 92,
+        "std_dev": 0.0,
+        "score_range": 0,
+        "stability": "stable",
+        "rationale_overlap": 1.0
+      },
+      {
+        "gene_symbol": "SCARA5",
+        "category": "true_positive",
+        "scores": [
+          85,
+          85,
+          85
+        ],
+        "mean_score": 85,
+        "std_dev": 0.0,
+        "score_range": 0,
+        "stability": "stable",
+        "rationale_overlap": 1.0
+      },
+      {
+        "gene_symbol": "DPYD",
+        "category": "true_positive",
+        "scores": [
+          85,
+          85,
+          85
+        ],
+        "mean_score": 85,
+        "std_dev": 0.0,
+        "score_range": 0,
+        "stability": "stable",
+        "rationale_overlap": 1.0
+      },
+      {
+        "gene_symbol": "GSTM5",
+        "category": "moderate",
+        "scores": [
+          65,
+          65,
+          65
+        ],
+        "mean_score": 65,
+        "std_dev": 0.0,
+        "score_range": 0,
+        "stability": "stable",
+        "rationale_overlap": 1.0
+      },
+      {
+        "gene_symbol": "HDAC9",
+        "category": "moderate",
+        "scores": [
+          65,
+          65,
+          65
+        ],
+        "mean_score": 65,
+        "std_dev": 0.0,
+        "score_range": 0,
+        "stability": "stable",
+        "rationale_overlap": 1.0
+      },
+      {
+        "gene_symbol": "CNTN2",
+        "category": "true_negative",
+        "scores": [
+          25,
+          25,
+          25
+        ],
+        "mean_score": 25,
+        "std_dev": 0.0,
+        "score_range": 0,
+        "stability": "stable",
+        "rationale_overlap": 1.0
+      },
+      {
+        "gene_symbol": "UCN3",
+        "category": "true_negative",
+        "scores": [
+          45,
+          45,
+          45
+        ],
+        "mean_score": 45,
+        "std_dev": 0.0,
+        "score_range": 0,
+        "stability": "stable",
+        "rationale_overlap": 1.0
+      },
+      {
+        "gene_symbol": "FICTIONAL_GENE_X",
+        "category": "true_negative",
+        "scores": [
+          0,
+          0,
+          0
+        ],
+        "mean_score": 0,
+        "std_dev": 0.0,
+        "score_range": 0,
+        "stability": "stable",
+        "rationale_overlap": 1.0
+      },
+      {
+        "gene_symbol": "EMPTY_GENE",
+        "category": "edge_no_abstracts",
+        "scores": [
+          0,
+          0,
+          0
+        ],
+        "mean_score": 0,
+        "std_dev": 0.0,
+        "score_range": 0,
+        "stability": "stable",
+        "rationale_overlap": 1.0
+      },
+      {
+        "gene_symbol": "CONFLICTED_GENE",
+        "category": "edge_conflicting",
+        "scores": [
+          45,
+          45,
+          45
+        ],
+        "mean_score": 45,
+        "std_dev": 0.0,
+        "score_range": 0,
+        "stability": "stable",
+        "rationale_overlap": 1.0
+      }
+    ],
+    "mean_std": 0.0,
+    "max_std": 0.0,
+    "unstable_genes": [],
+    "all_stable": true
+  },
+  "robustness_results": {
+    "results": [
+      {
+        "perturbation": "shuffle_order",
+        "gene_symbol": "LY6G6D",
+        "original_score": 92,
+        "perturbed_score": 85,
+        "drift": 7,
+        "pass": true,
+        "threshold": 10,
+        "test_type": "shuffle"
+      },
+      {
+        "perturbation": "remove_abstract",
+        "gene_symbol": "LY6G6D",
+        "original_score": 92,
+        "perturbed_score": 95,
+        "drift": 3,
+        "pass": true,
+        "threshold": 15,
+        "test_type": "remove"
+      },
+      {
+        "perturbation": "no_abstracts",
+        "gene_symbol": "LY6G6D",
+        "perturbed_score": 0,
+        "pass": true,
+        "threshold": 10,
+        "test_type": "no_abstracts"
+      },
+      {
+        "perturbation": "duplicate_abstracts",
+        "gene_symbol": "LY6G6D",
+        "original_score": 92,
+        "perturbed_score": 92,
+        "drift": 0,
+        "pass": true,
+        "threshold": 10,
+        "test_type": "duplicate"
+      },
+      {
+        "perturbation": "shuffle_order",
+        "gene_symbol": "GSTM5",
+        "original_score": 65,
+        "perturbed_score": 75,
+        "drift": 10,
+        "pass": true,
+        "threshold": 10,
+        "test_type": "shuffle"
+      },
+      {
+        "perturbation": "remove_abstract",
+        "gene_symbol": "GSTM5",
+        "original_score": 65,
+        "perturbed_score": 65,
+        "drift": 0,
+        "pass": true,
+        "threshold": 15,
+        "test_type": "remove"
+      },
+      {
+        "perturbation": "no_abstracts",
+        "gene_symbol": "GSTM5",
+        "perturbed_score": 0,
+        "pass": true,
+        "threshold": 10,
+        "test_type": "no_abstracts"
+      },
+      {
+        "perturbation": "duplicate_abstracts",
+        "gene_symbol": "GSTM5",
+        "original_score": 65,
+        "perturbed_score": 65,
+        "drift": 0,
+        "pass": true,
+        "threshold": 10,
+        "test_type": "duplicate"
+      },
+      {
+        "perturbation": "shuffle_order",
+        "gene_symbol": "CNTN2",
+        "original_score": 25,
+        "perturbed_score": 25,
+        "drift": 0,
+        "pass": true,
+        "threshold": 10,
+        "test_type": "shuffle"
+      },
+      {
+        "perturbation": "remove_abstract",
+        "gene_symbol": "CNTN2",
+        "original_score": 25,
+        "perturbed_score": 15,
+        "drift": 10,
+        "pass": true,
+        "threshold": 15,
+        "test_type": "remove"
+      },
+      {
+        "perturbation": "no_abstracts",
+        "gene_symbol": "CNTN2",
+        "perturbed_score": 0,
+        "pass": true,
+        "threshold": 10,
+        "test_type": "no_abstracts"
+      },
+      {
+        "perturbation": "duplicate_abstracts",
+        "gene_symbol": "CNTN2",
+        "original_score": 25,
+        "perturbed_score": 25,
+        "drift": 0,
+        "pass": true,
+        "threshold": 10,
+        "test_type": "duplicate"
+      },
+      {
+        "perturbation": "gene_name_swap",
+        "original_gene": "LY6G6D",
+        "swapped_to": "GAPDH",
+        "original_score": 92,
+        "swapped_score": 15,
+        "drift": 77,
+        "followed_evidence": false,
+        "pass": false,
+        "test_type": "gene_name_swap"
+      }
+    ],
+    "pass_count": 12,
+    "total_tests": 13,
+    "pass_rate": 0.92
+  }
+}
