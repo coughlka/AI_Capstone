@@ -17,7 +17,7 @@ The pipeline produces a ranked list of 500 biomarker candidates with transparent
 
 | Member | Module | Responsibility |
 |--------|--------|----------------|
-| Keith | `src/omics.py`, `src/scoring.py`, `src/llm_scoring.py` | Omics analysis, LLM scoring, pipeline orchestration |
+| Keith | `src/omics.py`, `src/scoring.py`, `src/llm_scoring.py`, `src/validation.py`, `evals/` | Omics analysis, LLM scoring, evaluation framework, pipeline orchestration |
 | Ayan | `src/pubmed.py` | PubMed literature retrieval |
 | Gabriel | `src/pathway.py` | Pathway enrichment analysis |
 
@@ -59,12 +59,13 @@ Download TCGA-COAD STAR counts from [UCSC Xena Browser](https://xenabrowser.net/
 python run_pipeline.py --config config/config.yaml
 ```
 
-The pipeline runs 5 steps in sequence:
+The pipeline runs 6 steps in sequence:
 1. **Omics** — Differential expression analysis (Welch's t-test, BH FDR correction)
 2. **PubMed** — Literature retrieval for top 500 candidate genes (~5 min)
 3. **Pathway** — g:Profiler enrichment analysis
-4. **LLM Scoring** — Claude scores literature relevance for each gene (~15 min)
+4. **LLM Scoring** — Claude scores literature relevance for each gene with `temperature=0` for deterministic results (~15 min)
 5. **Scoring** — Weighted combination: omics (45%), literature (35%), pathway (20%)
+6. **Validation** — Ranks 33 known CRC biomarkers against pipeline output to measure enrichment
 
 ### 5. Launch the Web UI
 
@@ -79,7 +80,7 @@ Open http://localhost:8000 to browse results.
 
 ```
 AI_Capstone/
-├── run_pipeline.py              # CLI entrypoint (5-step pipeline)
+├── run_pipeline.py              # CLI entrypoint (6-step pipeline)
 ├── config/
 │   └── config.yaml              # Central configuration
 ├── src/
@@ -88,8 +89,16 @@ AI_Capstone/
 │   ├── omics.py                 # Differential expression analysis
 │   ├── pubmed.py                # PubMed literature retrieval (NCBI E-Utilities)
 │   ├── pathway.py               # Pathway enrichment (g:Profiler API)
-│   ├── llm_scoring.py           # LLM-based literature relevance scoring
-│   └── scoring.py               # Evidence combination and ranking
+│   ├── llm_scoring.py           # LLM-based literature relevance scoring (temperature=0)
+│   ├── scoring.py               # Evidence combination and ranking
+│   └── validation.py            # Known CRC biomarker validation (33 biomarkers)
+├── evals/
+│   ├── test_cases.py            # Gold standard test cases (real + synthetic)
+│   ├── judge.py                 # LLM-as-a-judge scorer and evaluator
+│   ├── consistency.py           # Multi-run consistency testing
+│   ├── robustness.py            # Perturbation robustness testing
+│   └── run_evals.py             # Eval suite orchestrator
+├── tests/                       # Unit tests (81 tests)
 ├── web-app/
 │   ├── main.py                  # FastAPI application
 │   ├── .env                     # API keys (not committed)
@@ -115,6 +124,7 @@ AI_Capstone/
 | `outputs/pathway_evidence.csv` | Pathway enrichment (gene, pathway_count, top_pathways) |
 | `outputs/llm_scores.csv` | LLM relevance scores (0-100) with rationale per gene |
 | `outputs/ranked_candidates.csv` | Final ranked list with combined weighted scores |
+| `outputs/validation_summary.json` | Known biomarker enrichment analysis (33 CRC biomarkers) |
 
 ## Web UI Features
 
@@ -136,12 +146,32 @@ All pipeline parameters are in `config/config.yaml`:
 - **Pathway**: g:Profiler sources (GO:BP, KEGG, REAC, WP), FDR threshold
 - **Scoring weights**: omics (0.45), literature (0.35), pathway (0.20)
 
+## Evaluation Framework
+
+The `evals/` directory contains an LLM-as-a-judge evaluation suite that measures scoring quality:
+
+```bash
+python -m evals.run_evals
+```
+
+**What it tests:**
+- **Score calibration** — Are numeric scores appropriate for the evidence?
+- **Rubric adherence** — Does the rationale address all 4 weighted criteria?
+- **Groundedness** — Are claims supported by the provided abstracts only?
+- **Consistency** — Same input scored 3x produces identical results (temperature=0)
+- **Robustness** — Score stability under perturbations (shuffle, remove, duplicate abstracts)
+
+**Test cases** load real abstracts from `lit_evidence.csv` so evals reflect actual production behavior. Synthetic edge cases (empty input, conflicting evidence, fictional gene) test boundary conditions.
+
+**Latest results:** 10/10 cases pass, mean judge score 8.4/10, consistency std=0.0, robustness 92%.
+
 ## Key Results
 
 - **473 tumor** vs **41 normal** samples from TCGA-COAD
 - **25,800 significant genes** (FDR < 0.05)
 - **500 candidate genes** selected by strongest differential expression signal
-- **~395 genes** with PubMed literature evidence
+- **~395 genes** with PubMed literature evidence (~1,500 full abstracts)
 - **~382 genes** with pathway annotations (79% coverage via g:Profiler)
-- **LLM scores** range 0-95 with mean ~49 (well-differentiated)
-- Known CRC genes validated: APC, KRAS, SMAD4, PIK3CA, BRAF
+- **LLM scores** range 0-95 with mean ~49 (well-differentiated, deterministic with temperature=0)
+- **Biomarker validation**: 33/33 known CRC biomarkers found, 2.1x enrichment ratio (median rank 8,812 vs expected 18,259), 9 in top 5,000
+- **Top validated biomarkers**: BMP3 (rank 23), APC (rank 2,872), PTEN (rank 3,524), SMAD4 (rank 3,681), KRAS (rank 3,736)
