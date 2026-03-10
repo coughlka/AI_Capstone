@@ -4,6 +4,7 @@ Uses Claude to analyze PubMed abstracts for each candidate gene and
 score their relevance as colorectal cancer biomarkers.
 """
 
+import hashlib
 import json
 import os
 import time
@@ -23,18 +24,41 @@ SYSTEM_PROMPT = """\
 You are an expert biomedical researcher evaluating genes as potential \
 colorectal cancer (CRC) biomarkers.
 
-For each gene you will receive its name and PubMed abstract snippets. \
-Score the gene's relevance as a CRC biomarker on a 0-100 scale based on:
+Follow these steps IN ORDER:
 
-- **Direct CRC evidence** (40%): Do the abstracts describe the gene's role \
+STEP 1 — CHECK FOR ABSTRACTS: Look at the "Abstracts:" section in the user \
+message. If it is empty or contains no abstracts, you MUST immediately return \
+{"score": 0, "rationale": "No abstracts provided for evaluation."} and STOP. \
+Do NOT use your prior knowledge about the gene to infer a score when no \
+abstracts are provided. This applies regardless of how well-known the gene is.
+
+STEP 2 — SCORE BASED ON ABSTRACT CONTENT ONLY: Read the provided abstracts \
+and score the CRC biomarker evidence they contain. Base your score entirely \
+on what the abstracts say about CRC relevance. Do NOT use prior knowledge \
+about the gene.
+
+Score on a 0-100 scale using these weighted criteria:
+
+- **Direct CRC evidence** (40%): Do the abstracts describe a role \
 specifically in colorectal/colon/rectal cancer?
-- **Biomarker potential** (30%): Is there evidence the gene could serve as a \
-diagnostic, prognostic, or therapeutic biomarker (e.g., differential expression, \
+- **Biomarker potential** (30%): Is there evidence of diagnostic, \
+prognostic, or therapeutic biomarker utility (e.g., differential expression, \
 survival association, drug target)?
 - **Mechanistic insight** (20%): Do the abstracts describe a biological mechanism \
-linking the gene to CRC (e.g., Wnt signaling, EMT, immune evasion)?
+linking to CRC (e.g., Wnt signaling, EMT, immune evasion)?
 - **Evidence quality** (10%): Are the abstracts from recent, peer-reviewed studies \
 with clear methodology?
+
+Score calibration guide:
+- 80-100: Abstracts present direct, specific evidence of an established \
+or validated CRC biomarker with clear diagnostic/prognostic/therapeutic utility.
+- 60-79: Strong CRC-specific evidence but biomarker role is emerging, not yet \
+validated, or limited to specific contexts.
+- 40-59: CRC is mentioned but is not the primary focus, evidence is \
+indirect, or findings are pan-cancer rather than CRC-specific.
+- 20-39: Tangential CRC relevance only (e.g., mentioned in passing, general \
+oncology context without CRC-specific data).
+- 0-19: No meaningful CRC biomarker evidence in the provided abstracts.
 
 Return ONLY a JSON object with this exact format:
 {"score": <integer 0-100>, "rationale": "<1-2 sentence explanation>"}
@@ -45,7 +69,7 @@ def _build_gene_prompt(gene_symbol: str, abstracts: list[dict]) -> str:
     """Build the user prompt for a single gene."""
     parts = [f"Gene: {gene_symbol}\n\nAbstracts:"]
     for i, ab in enumerate(abstracts, 1):
-        parts.append(f"\n[{i}] {ab['title']}\n{ab['snippet']}")
+        parts.append(f"\n[{i}] {ab['title']}\n{ab['abstract']}")
     return "\n".join(parts)
 
 
@@ -116,62 +140,119 @@ def run_llm_scoring(config_path: str) -> str:
             grouped[gene] = []
         grouped[gene].append({
             "title": str(row.get("title", "")),
-            "snippet": str(row.get("snippet", "")),
+            "abstract": str(row.get("abstract", "")),
         })
 
-    # Initialize Anthropic client
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY not set. Add it to web-app/.env or set as environment variable."
-        )
-    client = anthropic.Anthropic(api_key=api_key)
+    # Build content hashes for each gene to detect changed abstracts
+    def _gene_hash(abstracts: list[dict]) -> str:
+        content = json.dumps({"abstracts": abstracts}, sort_keys=True)
+        return hashlib.md5(content.encode()).hexdigest()
 
-    print(f"[llm_scoring] Scoring {len(grouped)} genes with Claude...")
-    rows = []
-    total = len(grouped)
+    gene_hashes = {gene: _gene_hash(abs_list) for gene, abs_list in grouped.items()}
 
-    for i, (gene, abstracts) in enumerate(grouped.items()):
-        symbol = symbol_map.get(gene, gene)
-        prompt = _build_gene_prompt(symbol, abstracts)
-
+    # Load existing cache to avoid re-scoring unchanged genes
+    cached_scores = {}
+    cache_path = os.path.join(outputs_dir, "llm_scores_cache.json")
+    if os.path.exists(cache_path):
         try:
-            response = client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=256,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": prompt}],
+            with open(cache_path) as f:
+                cached_scores = json.load(f)
+            print(f"[llm_scoring] Loaded cache with {len(cached_scores)} existing scores")
+        except (json.JSONDecodeError, IOError):
+            cached_scores = {}
+
+    # Determine which genes need (re-)scoring
+    needs_scoring = []
+    cached_rows = []
+    for gene, abstracts in grouped.items():
+        cache_entry = cached_scores.get(gene)
+        if cache_entry and cache_entry.get("hash") == gene_hashes[gene]:
+            cached_rows.append({
+                "gene": gene,
+                "gene_symbol": symbol_map.get(gene, gene),
+                "llm_score": cache_entry["score"],
+                "rationale": cache_entry["rationale"],
+            })
+        else:
+            needs_scoring.append((gene, abstracts))
+
+    print(f"[llm_scoring] {len(cached_rows)} genes cached, {len(needs_scoring)} need scoring")
+
+    if not needs_scoring:
+        print("[llm_scoring] All genes already scored — skipping API calls")
+        scores_df = pd.DataFrame(cached_rows)
+    else:
+        # Initialize Anthropic client
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "ANTHROPIC_API_KEY not set. Add it to web-app/.env or set as environment variable."
             )
-            result = _parse_llm_response(response.content[0].text)
-        except anthropic.RateLimitError:
-            print(f"[llm_scoring] Rate limited at gene {i+1}. Waiting 60s...")
-            time.sleep(60)
+        client = anthropic.Anthropic(api_key=api_key)
+
+        print(f"[llm_scoring] Scoring {len(needs_scoring)} genes with Claude...")
+        new_rows = []
+        total = len(needs_scoring)
+
+        for i, (gene, abstracts) in enumerate(needs_scoring):
+            symbol = symbol_map.get(gene, gene)
+            prompt = _build_gene_prompt(symbol, abstracts)
+
             try:
                 response = client.messages.create(
                     model="claude-sonnet-4-20250514",
-                    max_tokens=256,
+                    max_tokens=512,
+                    temperature=0,
                     system=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": prompt}],
                 )
                 result = _parse_llm_response(response.content[0].text)
+            except anthropic.RateLimitError:
+                print(f"[llm_scoring] Rate limited at gene {i+1}. Waiting 60s...")
+                time.sleep(60)
+                try:
+                    response = client.messages.create(
+                        model="claude-sonnet-4-20250514",
+                        max_tokens=512,
+                        temperature=0,
+                        system=SYSTEM_PROMPT,
+                        messages=[{"role": "user", "content": prompt}],
+                    )
+                    result = _parse_llm_response(response.content[0].text)
+                except Exception as e:
+                    print(f"[llm_scoring] [{i+1}/{total}] {symbol}: retry failed ({e})")
+                    result = {"score": 0, "rationale": f"API error: {e}"}
             except Exception as e:
-                print(f"[llm_scoring] [{i+1}/{total}] {symbol}: retry failed ({e})")
-                result = {"score": 0, "rationale": f"API error: {e}"}
-        except Exception as e:
-            print(f"[llm_scoring] [{i+1}/{total}] {symbol}: failed ({e})")
-            result = {"score": 0, "rationale": f"Error: {e}"}
+                print(f"[llm_scoring] [{i+1}/{total}] {symbol}: failed ({e})")
+                result = {"score": 0, "rationale": f"Error: {e}"}
 
-        rows.append({
-            "gene": gene,
-            "gene_symbol": symbol,
-            "llm_score": result["score"],
-            "rationale": result["rationale"],
-        })
+            new_rows.append({
+                "gene": gene,
+                "gene_symbol": symbol,
+                "llm_score": result["score"],
+                "rationale": result["rationale"],
+            })
 
-        if (i + 1) % 25 == 0 or i == 0:
-            print(f"[llm_scoring] [{i+1}/{total}] {symbol}: score={result['score']}")
+            # Update cache immediately so progress is saved if interrupted
+            cached_scores[gene] = {
+                "hash": gene_hashes[gene],
+                "score": result["score"],
+                "rationale": result["rationale"],
+            }
 
-    scores_df = pd.DataFrame(rows)
+            if (i + 1) % 25 == 0 or i == 0:
+                print(f"[llm_scoring] [{i+1}/{total}] {symbol}: score={result['score']}")
+
+        # Save updated cache
+        try:
+            with open(cache_path, "w") as f:
+                json.dump(cached_scores, f)
+            print(f"[llm_scoring] Saved cache with {len(cached_scores)} entries")
+        except IOError as e:
+            print(f"[llm_scoring] Warning: failed to save cache ({e})")
+
+        scores_df = pd.DataFrame(cached_rows + new_rows)
+
     print(f"\n[llm_scoring] Score distribution:")
     print(f"  Mean: {scores_df['llm_score'].mean():.1f}")
     print(f"  Median: {scores_df['llm_score'].median():.1f}")
