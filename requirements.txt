@@ -15,3 +15,7 @@ requests
 
 # LLM chat feature
 anthropic
+
+# ML training (Ayan's classifier modules)
+scikit-learn
+joblib
