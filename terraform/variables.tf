@@ -49,6 +49,12 @@ variable "app_service_name" {
   default     = "psuai894webapp"
 }
 
+variable "acr_name" {
+  description = "Azure Container Registry name"
+  type        = string
+  default     = "psuai894acr"
+}
+
 variable "sku_size" {
   description = "App service plan SKU size"
   type        = string

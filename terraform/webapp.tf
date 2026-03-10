@@ -18,6 +18,19 @@ resource "azurerm_linux_web_app" "app_service" {
   site_config {
     always_on              = true
     vnet_route_all_enabled = true
+
+    application_stack {
+      docker_image_name   = "biomarker-cancer-web-app:latest"
+      docker_registry_url = "https://${azurerm_container_registry.acr.login_server}"
+    }
+  }
+
+  app_settings = {
+    "DOCKER_REGISTRY_SERVER_URL"      = "https://${azurerm_container_registry.acr.login_server}"
+    "DOCKER_REGISTRY_SERVER_USERNAME" = azurerm_container_registry.acr.admin_username
+    "DOCKER_REGISTRY_SERVER_PASSWORD" = azurerm_container_registry.acr.admin_password
+    "WEBSITES_PORT"                   = "8000"
+    "DOCKER_ENABLE_CI"                = "true"
   }
 
   virtual_network_subnet_id = azurerm_subnet.webapp_subnet.id
