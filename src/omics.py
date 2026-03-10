@@ -250,15 +250,18 @@ def run_omics(config_path: str) -> str:
     use_api = gene_mapping_config.get('use_api', True)
 
     if use_api:
-        results_df = map_ensembl_to_symbols(results_df, ensembl_col='gene', cache_path=cache_path)
+        results_df = map_ensembl_to_symbols(
+            results_df, ensembl_col='gene', cache_path=cache_path, include_type=True
+        )
     else:
-        # Just add empty column if API disabled
+        # Just add empty columns if API disabled
         results_df['gene_symbol'] = ''
+        results_df['type_of_gene'] = ''
         print("[omics] Gene symbol mapping disabled (use_api=false)")
 
     # Reorder columns to match contract (gene_symbol after gene)
-    results_df = results_df[['gene', 'gene_symbol', 'log2fc', 'p_value', 'fdr', 'direction',
-                              'tumor_mean', 'normal_mean', 'dataset']]
+    results_df = results_df[['gene', 'gene_symbol', 'type_of_gene', 'log2fc', 'p_value', 'fdr',
+                              'direction', 'tumor_mean', 'normal_mean', 'dataset']]
 
     # Sort by FDR for output
     results_df = results_df.sort_values('fdr')
