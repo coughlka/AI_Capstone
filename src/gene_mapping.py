@@ -23,16 +23,18 @@ def strip_ensembl_version(ensembl_id: str) -> str:
     return ensembl_id
 
 
-def load_mapping_file(mapping_path: str) -> Dict[str, str]:
+def load_mapping_file(mapping_path: str) -> Dict[str, dict]:
     """Load a local Ensembl to gene symbol mapping file.
 
-    Expected format: TSV with columns 'ensembl_id' and 'gene_symbol'
+    Expected format: TSV with columns 'ensembl_id', 'gene_symbol', and
+    optionally 'type_of_gene'.
 
     Args:
         mapping_path: Path to the mapping TSV file.
 
     Returns:
-        Dictionary mapping Ensembl IDs (without version) to gene symbols.
+        Dictionary mapping Ensembl IDs (without version) to dicts with
+        keys 'gene_symbol' and 'type_of_gene'.
     """
     if not os.path.exists(mapping_path):
         return {}
@@ -43,25 +45,30 @@ def load_mapping_file(mapping_path: str) -> Dict[str, str]:
         print(f"[gene_mapping] Warning: mapping file missing required columns")
         return {}
 
+    has_type = 'type_of_gene' in df.columns
     mapping = {}
     for _, row in df.iterrows():
         ens_id = strip_ensembl_version(str(row['ensembl_id']))
         symbol = str(row['gene_symbol'])
         if ens_id and symbol and symbol != 'nan':
-            mapping[ens_id] = symbol
+            mapping[ens_id] = {
+                'gene_symbol': symbol,
+                'type_of_gene': str(row['type_of_gene']) if has_type else '',
+            }
 
     return mapping
 
 
-def fetch_symbols_from_mygene(ensembl_ids: list, batch_size: int = 1000) -> Dict[str, str]:
-    """Fetch gene symbols from mygene.info API.
+def fetch_symbols_from_mygene(ensembl_ids: list, batch_size: int = 1000) -> Dict[str, dict]:
+    """Fetch gene symbols and types from mygene.info API.
 
     Args:
         ensembl_ids: List of Ensembl IDs (with or without versions).
         batch_size: Number of IDs to query per API call.
 
     Returns:
-        Dictionary mapping Ensembl IDs (without version) to gene symbols.
+        Dictionary mapping Ensembl IDs (without version) to dicts with
+        keys 'gene_symbol' and 'type_of_gene'.
     """
     # Strip versions for querying
     id_map = {strip_ensembl_version(eid): eid for eid in ensembl_ids}
@@ -85,7 +92,7 @@ def fetch_symbols_from_mygene(ensembl_ids: list, batch_size: int = 1000) -> Dict
             data = {
                 "q": ",".join(batch),
                 "scopes": "ensembl.gene",
-                "fields": "symbol",
+                "fields": "symbol,type_of_gene",
                 "species": "human"
             }
 
@@ -103,7 +110,10 @@ def fetch_symbols_from_mygene(ensembl_ids: list, batch_size: int = 1000) -> Dict
                     ens_id = result['query']
                     symbol = result['symbol']
                     if symbol:
-                        mapping[ens_id] = symbol
+                        mapping[ens_id] = {
+                            'gene_symbol': symbol,
+                            'type_of_gene': result.get('type_of_gene', ''),
+                        }
 
         except urllib.error.URLError as e:
             print(f"[gene_mapping] Warning: API request failed: {e}")
@@ -116,16 +126,21 @@ def fetch_symbols_from_mygene(ensembl_ids: list, batch_size: int = 1000) -> Dict
     return mapping
 
 
-def save_mapping_file(mapping: Dict[str, str], output_path: str) -> None:
+def save_mapping_file(mapping: Dict[str, dict], output_path: str) -> None:
     """Save mapping dictionary to TSV file for future use.
 
     Args:
-        mapping: Dictionary mapping Ensembl IDs to gene symbols.
+        mapping: Dictionary mapping Ensembl IDs to dicts with gene_symbol
+                 and type_of_gene keys.
         output_path: Path to save the TSV file.
     """
     df = pd.DataFrame([
-        {'ensembl_id': ens_id, 'gene_symbol': symbol}
-        for ens_id, symbol in mapping.items()
+        {
+            'ensembl_id': ens_id,
+            'gene_symbol': info['gene_symbol'],
+            'type_of_gene': info.get('type_of_gene', ''),
+        }
+        for ens_id, info in mapping.items()
     ])
     df.to_csv(output_path, sep='\t', index=False)
     print(f"[gene_mapping] Saved mapping to {output_path}")
@@ -135,8 +150,8 @@ def get_gene_symbols(
     ensembl_ids: list,
     cache_path: Optional[str] = None,
     use_api: bool = True
-) -> Dict[str, str]:
-    """Get gene symbols for Ensembl IDs, using cache if available.
+) -> Dict[str, dict]:
+    """Get gene symbols and types for Ensembl IDs, using cache if available.
 
     Args:
         ensembl_ids: List of Ensembl IDs (with or without versions).
@@ -145,7 +160,8 @@ def get_gene_symbols(
         use_api: Whether to fetch missing mappings from mygene.info API.
 
     Returns:
-        Dictionary mapping Ensembl IDs (without version) to gene symbols.
+        Dictionary mapping Ensembl IDs (without version) to dicts with
+        keys 'gene_symbol' and 'type_of_gene'.
     """
     mapping = {}
 
@@ -172,25 +188,33 @@ def get_gene_symbols(
 
 
 def map_ensembl_to_symbols(df: pd.DataFrame, ensembl_col: str = 'gene',
-                           cache_path: Optional[str] = None) -> pd.DataFrame:
+                           cache_path: Optional[str] = None,
+                           include_type: bool = False) -> pd.DataFrame:
     """Add gene_symbol column to DataFrame with Ensembl IDs.
 
     Args:
         df: DataFrame containing Ensembl IDs.
         ensembl_col: Name of column containing Ensembl IDs.
         cache_path: Optional path to cache file.
+        include_type: If True, also add a 'type_of_gene' column
+                      (e.g. 'protein-coding', 'ncRNA', 'pseudo').
 
     Returns:
-        DataFrame with added 'gene_symbol' column.
+        DataFrame with added 'gene_symbol' column, and optionally
+        'type_of_gene'.
     """
     ensembl_ids = df[ensembl_col].tolist()
     mapping = get_gene_symbols(ensembl_ids, cache_path=cache_path)
 
-    # Map IDs (strip version for lookup)
     df = df.copy()
     df['gene_symbol'] = df[ensembl_col].apply(
-        lambda x: mapping.get(strip_ensembl_version(x), '')
+        lambda x: mapping.get(strip_ensembl_version(x), {}).get('gene_symbol', '')
     )
+
+    if include_type:
+        df['type_of_gene'] = df[ensembl_col].apply(
+            lambda x: mapping.get(strip_ensembl_version(x), {}).get('type_of_gene', '')
+        )
 
     mapped_count = (df['gene_symbol'] != '').sum()
     print(f"[gene_mapping] Mapped {mapped_count}/{len(df)} genes to symbols")
