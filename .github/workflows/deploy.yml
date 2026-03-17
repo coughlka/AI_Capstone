@@ -1,0 +1,35 @@
+name: Build and Deploy to Azure Web App
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: biomarker-cancer-web-app
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
+            ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
