@@ -49,7 +49,7 @@ except Exception:
     XGBOOST_AVAILABLE = False
 
 
-DEFAULT_PROJECT_ROOT = Path(r"D:\Ayan\PSU Capstone Project\AI_Capstone")
+DEFAULT_PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def normalize_ensembl_gene_id(val):
