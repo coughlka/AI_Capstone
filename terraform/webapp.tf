@@ -41,7 +41,7 @@ resource "azurerm_linux_web_app" "app_service" {
     type         = "AzureFiles"
     access_key   = azurerm_storage_account.storage_account.primary_access_key
     account_name = azurerm_storage_account.storage_account.name
-    mount_path   = "/web-app"
+    mount_path   = "/mnt/web-app-share"
   }
 
   tags = var.tags
