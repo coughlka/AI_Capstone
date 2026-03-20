@@ -124,7 +124,7 @@ def load_sample_expression_matrix(project_root) -> tuple[pd.DataFrame, pd.Series
       cols = genes
     """
     root = Path(project_root)
-    data_path = root / "data" / "raw" / "TCGA-COAD.star_counts.tsv"
+    data_path = root / "data" / "TCGA-COAD.star_counts.tsv"
     mapping_path = root / "data" / "ensembl_to_symbol_cache.tsv"
 
     print("Loading expression dataset...")
