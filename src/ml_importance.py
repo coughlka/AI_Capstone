@@ -11,6 +11,7 @@ import os
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix
 from sklearn.model_selection import StratifiedKFold
 
 from src.omics import load_expression_data
@@ -36,6 +37,8 @@ def _train_and_explain(X: np.ndarray, y: np.ndarray, gene_names: list,
     skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
     shap_accum = np.zeros(X.shape[1], dtype=np.float64)
     n_samples_seen = 0
+    fold_metrics = []
+    all_y_true, all_y_pred, all_y_prob = [], [], []
 
     for fold_idx, (train_idx, val_idx) in enumerate(skf.split(X, y), 1):
         X_train, X_val = X[train_idx], X[val_idx]
@@ -51,8 +54,16 @@ def _train_and_explain(X: np.ndarray, y: np.ndarray, gene_names: list,
         )
         model.fit(X_train, y_train)
 
-        acc = (model.predict(X_val) == y_val).mean()
-        print(f"[{TAG}]   Fold {fold_idx}/{n_folds}: val accuracy = {acc:.3f}")
+        y_pred = model.predict(X_val)
+        y_prob = model.predict_proba(X_val)[:, 1]
+        acc = (y_pred == y_val).mean()
+        auc = roc_auc_score(y_val, y_prob)
+        fold_metrics.append({'fold': fold_idx, 'accuracy': acc, 'auc': auc,
+                             'n_tumor': y_val.sum(), 'n_normal': (y_val == 0).sum()})
+        all_y_true.extend(y_val)
+        all_y_pred.extend(y_pred)
+        all_y_prob.extend(y_prob)
+        print(f"[{TAG}]   Fold {fold_idx}/{n_folds}: accuracy = {acc:.3f}, AUC = {auc:.3f}")
 
         explainer = shap.TreeExplainer(model)
         shap_vals = explainer.shap_values(X_val)
@@ -71,7 +82,27 @@ def _train_and_explain(X: np.ndarray, y: np.ndarray, gene_names: list,
         n_samples_seen += len(val_idx)
 
     mean_abs_shap = shap_accum / n_samples_seen
-    return mean_abs_shap
+
+    # Print CV summary
+    accs = [m['accuracy'] for m in fold_metrics]
+    aucs = [m['auc'] for m in fold_metrics]
+    print(f"\n[{TAG}]   CV Summary ({n_folds}-fold):")
+    print(f"[{TAG}]     Accuracy: {np.mean(accs):.3f} +/- {np.std(accs):.3f}")
+    print(f"[{TAG}]     AUC:      {np.mean(aucs):.3f} +/- {np.std(aucs):.3f}")
+
+    all_y_true = np.array(all_y_true)
+    all_y_pred = np.array(all_y_pred)
+    cm = confusion_matrix(all_y_true, all_y_pred)
+    print(f"[{TAG}]     Confusion matrix (pooled OOF):")
+    print(f"[{TAG}]       TN={cm[0,0]}  FP={cm[0,1]}")
+    print(f"[{TAG}]       FN={cm[1,0]}  TP={cm[1,1]}")
+    print(f"[{TAG}]     Classification report (pooled OOF):")
+    report = classification_report(all_y_true, all_y_pred,
+                                   target_names=['normal', 'tumor'])
+    for line in report.split('\n'):
+        print(f"[{TAG}]       {line}")
+
+    return mean_abs_shap, fold_metrics
 
 
 def run_ml_importance(config_path: str) -> str:
@@ -117,7 +148,12 @@ def run_ml_importance(config_path: str) -> str:
     X = np.nan_to_num(X, nan=0.0)
 
     print(f"[{TAG}] Training {n_folds}-fold Random Forest + SHAP...")
-    shap_scores = _train_and_explain(X, y, selected_genes, n_folds=n_folds)
+    shap_scores, fold_metrics = _train_and_explain(X, y, selected_genes, n_folds=n_folds)
+
+    # Save CV metrics
+    metrics_path = os.path.join(outputs_dir, 'ml_cv_metrics.csv')
+    pd.DataFrame(fold_metrics).to_csv(metrics_path, index=False)
+    print(f"[{TAG}] Wrote CV metrics to {metrics_path}")
 
     # Build results DataFrame
     results = pd.DataFrame({
@@ -140,11 +176,19 @@ def run_ml_importance(config_path: str) -> str:
     write_csv(results, output_path)
     print(f"[{TAG}] Wrote {len(results)} gene importance scores to {output_path}")
 
+    # SHAP distribution summary
+    nonzero = results[results['shap_importance'] > 0]
+    print(f"\n[{TAG}] SHAP distribution:")
+    print(f"[{TAG}]   Non-zero genes: {len(nonzero)} / {len(results)}")
+    print(f"[{TAG}]   Max:  {nonzero['shap_importance'].max():.6f}")
+    print(f"[{TAG}]   Mean: {nonzero['shap_importance'].mean():.6f}")
+    print(f"[{TAG}]   Median: {nonzero['shap_importance'].median():.6f}")
+
     # Print top 15
     print(f"\n[{TAG}] Top 15 genes by SHAP importance:")
     for _, row in results.head(15).iterrows():
         print(f"        {row['feature_rank']:3.0f}. {row['gene']}: "
-              f"SHAP={row['shap_importance']:.4f}")
+              f"SHAP={row['shap_importance']:.6f}")
 
     print(f"\n[{TAG}] Done.")
     return output_path
