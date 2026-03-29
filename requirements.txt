@@ -16,6 +16,6 @@ requests
 # LLM chat feature
 anthropic
 
-# ML training (Ayan's classifier modules)
+# ML importance (SHAP explainability)
 scikit-learn
-joblib
+shap

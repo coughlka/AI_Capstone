@@ -104,6 +104,57 @@ def benjamini_hochberg(p_values: np.ndarray) -> np.ndarray:
     return fdr
 
 
+def load_expression_data(config_path: str, tag: str = "omics"):
+    """Load and prepare the expression matrix, sample labels, and config.
+
+    Shared by omics, ml_importance, and autoencoder modules so the heavy
+    TSV read and gene-filtering logic lives in one place.
+
+    Args:
+        config_path: Path to the configuration YAML file.
+        tag: Logging prefix for print statements.
+
+    Returns:
+        (counts_filtered, tumor_samples, normal_samples, config) tuple.
+    """
+    config = load_config(config_path)
+    ensure_dirs(config)
+
+    counts_path = config['omics']['counts_path']
+
+    print(f"[{tag}] Reading counts from: {counts_path}")
+    if not os.path.exists(counts_path):
+        raise FileNotFoundError(
+            f"Counts file not found: {counts_path}. "
+            "Please ensure the data file exists in the data/ directory."
+        )
+
+    counts_df = pd.read_csv(counts_path, sep='\t', index_col=0)
+    n_genes_raw = counts_df.shape[0]
+    n_samples = counts_df.shape[1]
+    print(f"[{tag}] Loaded {n_genes_raw} genes x {n_samples} samples")
+
+    sample_labels = parse_tcga_sample_labels(counts_df.columns.tolist())
+    tumor_samples = sample_labels[sample_labels['sample_type_group'] == 'tumor']['sample_id'].tolist()
+    normal_samples = sample_labels[sample_labels['sample_type_group'] == 'normal']['sample_id'].tolist()
+    print(f"[{tag}] Samples: {len(tumor_samples)} tumor, {len(normal_samples)} normal")
+
+    if len(tumor_samples) < 3:
+        raise ValueError(f"Insufficient tumor samples: {len(tumor_samples)}")
+    if len(normal_samples) < 3:
+        raise ValueError(f"Insufficient normal samples: {len(normal_samples)}")
+
+    counts_df = counts_df.apply(pd.to_numeric, errors='coerce')
+
+    gene_means = counts_df.mean(axis=1)
+    nonzero_fraction = (counts_df > 0).sum(axis=1) / n_samples
+    keep_mask = (gene_means >= 1.0) | (nonzero_fraction >= 0.20)
+    counts_filtered = counts_df[keep_mask]
+    print(f"[{tag}] Gene filtering: {n_genes_raw} -> {counts_filtered.shape[0]} genes")
+
+    return counts_filtered, tumor_samples, normal_samples, config
+
+
 def run_omics(config_path: str) -> str:
     """Run tumor vs normal differential expression analysis.
 
@@ -122,69 +173,22 @@ def run_omics(config_path: str) -> str:
         ValueError: If insufficient tumor or normal samples are found.
     """
     print("[omics] Loading configuration...")
-    config = load_config(config_path)
-    ensure_dirs(config)
+    counts_filtered, tumor_samples, normal_samples, config = load_expression_data(config_path, tag="omics")
 
-    counts_path = config['omics']['counts_path']
     dataset_label = config['omics']['dataset_label']
     outputs_dir = config['paths']['outputs_dir']
     output_path = os.path.join(outputs_dir, 'omics_evidence.csv')
 
-    print(f"[omics] Reading counts from: {counts_path}")
-    if not os.path.exists(counts_path):
-        raise FileNotFoundError(
-            f"Omics counts file not found: {counts_path}. "
-            "Please ensure the data file exists in the data/ directory."
-        )
-
-    # Read TSV: first column is gene id, remaining columns are samples
-    counts_df = pd.read_csv(counts_path, sep='\t', index_col=0)
-    n_genes_raw = counts_df.shape[0]
-    n_samples = counts_df.shape[1]
-
-    print(f"[omics] Loaded {n_genes_raw} genes x {n_samples} samples")
-
-    # Parse sample labels from TCGA barcodes
-    print("[omics] Parsing TCGA sample barcodes...")
-    sample_labels = parse_tcga_sample_labels(counts_df.columns.tolist())
-
-    tumor_samples = sample_labels[sample_labels['sample_type_group'] == 'tumor']['sample_id'].tolist()
-    normal_samples = sample_labels[sample_labels['sample_type_group'] == 'normal']['sample_id'].tolist()
-
     n_tumor = len(tumor_samples)
     n_normal = len(normal_samples)
-
-    print(f"[omics] Sample classification:")
-    print(f"        - Tumor samples: {n_tumor}")
-    print(f"        - Normal samples: {n_normal}")
-
-    # Check we have enough samples for DE analysis
-    if n_tumor < 3:
-        raise ValueError(f"Insufficient tumor samples for DE analysis: {n_tumor} (need at least 3)")
-    if n_normal < 3:
-        raise ValueError(f"Insufficient normal samples for DE analysis: {n_normal} (need at least 3)")
+    n_genes_filtered = counts_filtered.shape[0]
 
     # Print sample type breakdown
+    sample_labels = parse_tcga_sample_labels(counts_filtered.columns.tolist())
     type_counts = sample_labels.groupby('sample_type_code').size().sort_values(ascending=False)
     print("[omics] Sample type breakdown:")
     for code, count in type_counts.items():
         print(f"        - {code}: {count}")
-
-    # Ensure numeric values
-    counts_df = counts_df.apply(pd.to_numeric, errors='coerce')
-
-    # Filter genes to reduce noise and runtime
-    print("[omics] Filtering genes...")
-    gene_means = counts_df.mean(axis=1)
-    nonzero_fraction = (counts_df > 0).sum(axis=1) / n_samples
-
-    # Keep genes where mean >= 1.0 OR nonzero in >= 20% of samples
-    keep_mask = (gene_means >= 1.0) | (nonzero_fraction >= 0.20)
-    counts_filtered = counts_df[keep_mask]
-    n_genes_filtered = counts_filtered.shape[0]
-
-    print(f"[omics] Gene filtering: {n_genes_raw} -> {n_genes_filtered} genes")
-    print(f"        (kept genes with mean >= 1.0 or nonzero in >= 20% samples)")
 
     # Split into tumor and normal expression matrices
     tumor_expr = counts_filtered[tumor_samples]

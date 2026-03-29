@@ -35,8 +35,13 @@ pathway:
     - "REAC"
     - "WP"
 
+ml_importance:
+  n_folds: 5
+  top_n_features: 5000   # pre-select top genes by variance for RF + SHAP
+
 scoring:
   weights:
-    omics: 0.45
-    literature: 0.35
+    omics: 0.40
+    ml_importance: 0.10
+    literature: 0.30
     pathway: 0.20
