@@ -1,4 +1,10 @@
-"""Validation module: checks ranked results against known CRC biomarkers."""
+"""Validation module: checks ranked results against known CRC biomarkers.
+
+Uses a 3-tier biomarker set:
+  Tier 1: FDA-approved / guideline-recommended (highest confidence)
+  Tier 2: COSMIC Cancer Gene Census (CRC-specific entries)
+  Tier 3: Validated clinical literature (prognostic, immune, epigenetic)
+"""
 
 import json
 import os
@@ -8,45 +14,81 @@ import pandas as pd
 from src.utils import load_config, ensure_dirs, read_csv
 
 
-# Curated list of known CRC biomarkers with functional categories
-KNOWN_CRC_BIOMARKERS = {
-    # Mutation-driven oncogenes/tumor suppressors
-    "APC": "mutation-driven",
-    "KRAS": "mutation-driven",
-    "TP53": "mutation-driven",
-    "BRAF": "mutation-driven",
-    "PIK3CA": "mutation-driven",
-    "SMAD4": "mutation-driven",
-    "FBXW7": "mutation-driven",
-    "PTEN": "mutation-driven",
-    "NRAS": "mutation-driven",
-    "CTNNB1": "mutation-driven",
-    "RNF43": "mutation-driven",
-    "POLE": "mutation-driven",
-    # Expression/methylation biomarkers
-    "BMP3": "expression/methylation",
-    "NDRG4": "expression/methylation",
-    "VIM": "expression/methylation",
-    "CDH1": "expression/methylation",
-    "CEACAM5": "expression/methylation",
-    "MKI67": "expression/methylation",
-    "CDX2": "expression/methylation",
-    # Signaling/pathway genes
-    "EGFR": "signaling/pathway",
-    "ERBB2": "signaling/pathway",
-    "VEGFA": "signaling/pathway",
-    "TGFBR2": "signaling/pathway",
-    "MYC": "signaling/pathway",
-    "MLH1": "signaling/pathway",
-    "MSH2": "signaling/pathway",
-    "MSH6": "signaling/pathway",
-    "PMS2": "signaling/pathway",
-    "TCF7L2": "signaling/pathway",
-    "AXIN2": "signaling/pathway",
-    "SOX9": "signaling/pathway",
-    "DCC": "signaling/pathway",
-    "MSH3": "signaling/pathway",
+# --- 3-tier known CRC biomarker definitions ---
+
+TIER1_FDA_GUIDELINE = {
+    "KRAS", "NRAS", "BRAF", "EGFR", "ERBB2", "MLH1", "MSH2", "MSH6",
+    "PMS2", "EPCAM", "VEGFA", "BMP3", "NDRG4", "DPYD",
 }
+
+TIER2_COSMIC_CGC = {
+    "APC", "TP53", "PIK3CA", "SMAD4", "FBXW7", "PTEN", "CTNNB1",
+    "RNF43", "POLE", "TGFBR2", "AXIN2", "SOX9", "TCF7L2",
+    "AMER1", "ARID1A", "SMAD2", "ACVR2A", "ATM", "ZNRF3",
+    "BCL9L", "RBM10", "PCBP1", "RPL22", "PTPRT", "FAM123B",
+}
+
+TIER3_VALIDATED = {
+    "VIM", "CDH1", "CEACAM5", "MKI67", "CDX2", "DCC", "MYC", "MSH3",
+    "ERBB3", "MET", "VEGFB", "FLT1", "KDR", "PDGFRA", "IGF2",
+    "MAP2K1", "TGFB1", "SMAD3", "NOTCH1", "JAG1", "DLL4",
+    "GSK3B", "CSNK1A1", "DVL2", "MYB", "ETV4", "FOXQ1",
+    "CD274", "PDCD1", "CTLA4", "LAG3",
+    "DNMT1", "DNMT3B", "TET2", "KDM6A",
+    "MUTYH", "CHEK2", "BRCA1", "BRCA2", "PALB2", "PIK3R1",
+    "CTNNB1",
+}
+
+# Build tier lookup
+BIOMARKER_TIERS = {}
+for g in TIER1_FDA_GUIDELINE:
+    BIOMARKER_TIERS[g] = 1
+for g in TIER2_COSMIC_CGC:
+    BIOMARKER_TIERS.setdefault(g, 2)
+for g in TIER3_VALIDATED:
+    BIOMARKER_TIERS.setdefault(g, 3)
+
+# All known biomarkers (union)
+ALL_BIOMARKERS = TIER1_FDA_GUIDELINE | TIER2_COSMIC_CGC | TIER3_VALIDATED
+
+# Functional category mapping
+BIOMARKER_CATEGORIES = {}
+
+for g in ["APC", "TP53", "PIK3CA", "SMAD4", "FBXW7", "PTEN", "CTNNB1",
+          "RNF43", "POLE", "AMER1", "ARID1A", "SMAD2", "ACVR2A", "ATM",
+          "ZNRF3", "BCL9L", "RBM10", "PCBP1", "RPL22", "PTPRT", "FAM123B",
+          "MUTYH", "CHEK2", "BRCA1", "BRCA2", "PALB2", "PIK3R1"]:
+    BIOMARKER_CATEGORIES[g] = "mutation/tumor-suppressor"
+
+for g in ["KRAS", "NRAS", "BRAF", "EGFR", "ERBB2", "ERBB3", "MET",
+          "VEGFA", "VEGFB", "FLT1", "KDR", "PDGFRA", "IGF2",
+          "MAP2K1", "TGFBR2", "TGFB1", "SMAD3",
+          "NOTCH1", "JAG1", "DLL4", "TCF7L2", "AXIN2", "SOX9",
+          "GSK3B", "CSNK1A1", "DVL2", "MYC", "MYB", "ETV4", "FOXQ1"]:
+    BIOMARKER_CATEGORIES[g] = "signaling/pathway"
+
+for g in ["MLH1", "MSH2", "MSH6", "PMS2", "EPCAM", "MSH3"]:
+    BIOMARKER_CATEGORIES[g] = "MMR/MSI"
+
+for g in ["BMP3", "NDRG4", "VIM", "CDH1", "CEACAM5", "MKI67", "CDX2", "DCC"]:
+    BIOMARKER_CATEGORIES[g] = "expression/methylation"
+
+for g in ["CD274", "PDCD1", "CTLA4", "LAG3"]:
+    BIOMARKER_CATEGORIES[g] = "immune-checkpoint"
+
+for g in ["DNMT1", "DNMT3B", "TET2", "KDM6A"]:
+    BIOMARKER_CATEGORIES[g] = "epigenetic"
+
+for g in ["DPYD"]:
+    BIOMARKER_CATEGORIES[g] = "pharmacogenomic"
+
+# Final dict: gene -> {tier, category}
+KNOWN_CRC_BIOMARKERS = {}
+for gene in ALL_BIOMARKERS:
+    KNOWN_CRC_BIOMARKERS[gene] = {
+        "tier": BIOMARKER_TIERS.get(gene, 3),
+        "category": BIOMARKER_CATEGORIES.get(gene, "other"),
+    }
 
 
 def run_validation(config_path: str) -> str:
@@ -100,41 +142,33 @@ def run_validation(config_path: str) -> str:
     print(f"[validation] Checking {len(KNOWN_CRC_BIOMARKERS)} known CRC biomarkers...")
     results = []
 
-    for symbol, category in KNOWN_CRC_BIOMARKERS.items():
+    def _empty_result(symbol, info, ensembl_id='NOT_FOUND'):
+        return {
+            'gene_symbol': symbol,
+            'gene': ensembl_id,
+            'tier': info['tier'],
+            'category': info['category'],
+            'rank': None,
+            'percentile': None,
+            'final_score': None,
+            'omics_score': None,
+            'ml_importance_score': None,
+            'literature_score': None,
+            'pathway_score': None,
+            'in_top_500': False,
+            'in_top_1000': False,
+            'in_top_5000': False,
+        }
+
+    for symbol, info in KNOWN_CRC_BIOMARKERS.items():
         ensembl_id = symbol_to_ensembl.get(symbol)
         if ensembl_id is None:
-            results.append({
-                'gene_symbol': symbol,
-                'gene': 'NOT_FOUND',
-                'category': category,
-                'rank': None,
-                'percentile': None,
-                'final_score': None,
-                'omics_score': None,
-                'literature_score': None,
-                'pathway_score': None,
-                'in_top_500': False,
-                'in_top_1000': False,
-                'in_top_5000': False,
-            })
+            results.append(_empty_result(symbol, info))
             continue
 
         match = ranked[ranked['gene'] == ensembl_id]
         if match.empty:
-            results.append({
-                'gene_symbol': symbol,
-                'gene': ensembl_id,
-                'category': category,
-                'rank': None,
-                'percentile': None,
-                'final_score': None,
-                'omics_score': None,
-                'literature_score': None,
-                'pathway_score': None,
-                'in_top_500': False,
-                'in_top_1000': False,
-                'in_top_5000': False,
-            })
+            results.append(_empty_result(symbol, info, ensembl_id))
             continue
 
         row = match.iloc[0]
@@ -144,11 +178,13 @@ def run_validation(config_path: str) -> str:
         results.append({
             'gene_symbol': symbol,
             'gene': ensembl_id,
-            'category': category,
+            'tier': info['tier'],
+            'category': info['category'],
             'rank': rank,
             'percentile': percentile,
             'final_score': round(row['final_score'], 2),
             'omics_score': round(row['omics_score'], 2),
+            'ml_importance_score': round(row.get('ml_importance_score', 0), 2),
             'literature_score': round(row['literature_score'], 2),
             'pathway_score': round(row['pathway_score'], 2),
             'in_top_500': rank <= 500,
@@ -175,9 +211,26 @@ def run_validation(config_path: str) -> str:
     in_top_1000 = int(found['in_top_1000'].sum())
     in_top_5000 = int(found['in_top_5000'].sum())
 
+    # Tier breakdown
+    tier_stats = {}
+    for tier_num, tier_label in [(1, "FDA/guideline"), (2, "COSMIC CGC"), (3, "validated literature")]:
+        tier_df = found[found['tier'] == tier_num]
+        tier_total = report_df[report_df['tier'] == tier_num]
+        if not tier_df.empty:
+            tier_stats[f"tier_{tier_num}"] = {
+                'label': tier_label,
+                'found': len(tier_df),
+                'total': len(tier_total),
+                'median_rank': int(tier_df['rank'].median()),
+                'mean_score': round(float(tier_df['final_score'].mean()), 2),
+                'in_top_500': int(tier_df['in_top_500'].sum()),
+                'best_gene': tier_df.iloc[0]['gene_symbol'],
+                'best_rank': int(tier_df.iloc[0]['rank']),
+            }
+
     # Category breakdown
     category_stats = {}
-    for cat in ['mutation-driven', 'expression/methylation', 'signaling/pathway']:
+    for cat in sorted(found['category'].unique()):
         cat_df = found[found['category'] == cat]
         if not cat_df.empty:
             category_stats[cat] = {
@@ -195,6 +248,7 @@ def run_validation(config_path: str) -> str:
             'gene_symbol': row['gene_symbol'],
             'rank': int(row['rank']),
             'final_score': row['final_score'],
+            'tier': int(row['tier']),
             'category': row['category'],
         })
 
@@ -211,6 +265,7 @@ def run_validation(config_path: str) -> str:
         'in_top_500': in_top_500,
         'in_top_1000': in_top_1000,
         'in_top_5000': in_top_5000,
+        'tier_breakdown': tier_stats,
         'category_breakdown': category_stats,
         'top_known_biomarkers': top_known,
     }
@@ -220,8 +275,7 @@ def run_validation(config_path: str) -> str:
         json.dump(summary, f, indent=2)
 
     # Print summary
-    print(f"\n[validation] === Known CRC Biomarker Validation ===")
-    print(f"  Known biomarkers checked:  {len(KNOWN_CRC_BIOMARKERS)}")
+    print(f"\n[validation] === Known CRC Biomarker Validation ({len(KNOWN_CRC_BIOMARKERS)} markers) ===")
     print(f"  Found in dataset:          {len(found)}/{len(KNOWN_CRC_BIOMARKERS)}")
     print(f"  In top 500:                {in_top_500}")
     print(f"  In top 1,000:              {in_top_1000}")
@@ -229,10 +283,20 @@ def run_validation(config_path: str) -> str:
     print(f"  Median rank:               {int(actual_median):,} (expected random: {int(expected_median):,})")
     if actual_median:
         print(f"  Enrichment ratio:          {expected_median / actual_median:.1f}x above random")
+
+    print(f"\n  By tier:")
+    for key in ['tier_1', 'tier_2', 'tier_3']:
+        if key in tier_stats:
+            t = tier_stats[key]
+            print(f"    {key.replace('_', ' ').title()} ({t['label']}): "
+                  f"{t['found']}/{t['total']} found, "
+                  f"median rank={t['median_rank']:,}, "
+                  f"top 500={t['in_top_500']}")
+
     print(f"\n  Top 10 known biomarkers by rank:")
     for _, row in found.head(10).iterrows():
         print(f"    {row['gene_symbol']:12s}  rank={int(row['rank']):>5,}  "
-              f"score={row['final_score']:.2f}  ({row['category']})")
+              f"score={row['final_score']:.2f}  tier={int(row['tier'])}  ({row['category']})")
 
     print(f"\n[validation] Done.")
     return report_path
