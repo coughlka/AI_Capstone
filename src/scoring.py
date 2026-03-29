@@ -31,6 +31,29 @@ def _min_max_normalize(series: pd.Series, target_min: float = 0, target_max: flo
     return (series - min_val) / (max_val - min_val) * (target_max - target_min) + target_min
 
 
+def _rank_normalize(series: pd.Series, target_max: float = 100) -> pd.Series:
+    """Rank-based percentile normalization for heavily skewed distributions.
+
+    Genes with value 0 stay at 0.  Non-zero genes are spread across
+    (0, target_max] by their rank among non-zero values.  This avoids
+    the problem where a few extreme outliers crush everything else to ~0
+    under min-max normalization.
+    """
+    result = pd.Series(0.0, index=series.index)
+    nonzero_mask = series > 0
+    n_nonzero = nonzero_mask.sum()
+
+    if n_nonzero == 0:
+        return result
+
+    # Rank non-zero values (1 = smallest, n = largest)
+    ranks = series[nonzero_mask].rank(method='average')
+    # Scale to (0, target_max]
+    result[nonzero_mask] = (ranks / n_nonzero) * target_max
+
+    return result
+
+
 def run_scoring(config_path: str) -> str:
     """Run the scoring and ranking pipeline step.
 
@@ -88,11 +111,12 @@ def run_scoring(config_path: str) -> str:
 
     # Get weights from config
     weights = config.get('scoring', {}).get('weights', {})
-    w_omics = weights.get('omics', 0.45)
-    w_lit = weights.get('literature', 0.35)
+    w_omics = weights.get('omics', 0.40)
+    w_ml = weights.get('ml_importance', 0.10)
+    w_lit = weights.get('literature', 0.30)
     w_path = weights.get('pathway', 0.20)
 
-    print(f"[scoring] Using weights: omics={w_omics}, literature={w_lit}, pathway={w_path}")
+    print(f"[scoring] Using weights: omics={w_omics}, ml={w_ml}, literature={w_lit}, pathway={w_path}")
 
     # Start with omics data as the base (gene list)
     if omics_df.empty:
@@ -128,6 +152,25 @@ def run_scoring(config_path: str) -> str:
         print("[scoring] Warning: No valid omics scoring columns found. Using zeros.")
         scored = omics_df[['gene']].copy()
         scored['omics_score'] = 0.0
+
+    # Compute ml_importance_score: Random Forest SHAP values
+    ml_path = os.path.join(outputs_dir, 'ml_importance.csv')
+    print("[scoring] Computing ML importance scores...")
+    if os.path.exists(ml_path):
+        ml_df = read_csv(ml_path)
+        if not ml_df.empty and 'shap_importance' in ml_df.columns:
+            print("[scoring] Using SHAP-based ML importance scores")
+            ml_scores = ml_df[['gene', 'shap_importance']].copy()
+            scored = scored.merge(ml_scores, on='gene', how='left')
+            scored['shap_importance'] = scored['shap_importance'].fillna(0)
+            scored['ml_importance_score'] = _rank_normalize(scored['shap_importance'])
+            scored = scored.drop(columns=['shap_importance'])
+        else:
+            print("[scoring] ML importance file empty, setting to 0")
+            scored['ml_importance_score'] = 0.0
+    else:
+        print("[scoring] No ML importance file found, setting to 0")
+        scored['ml_importance_score'] = 0.0
 
     # Compute literature_score: use LLM scores if available, fall back to counts
     llm_scores_path = os.path.join(outputs_dir, 'llm_scores.csv')
@@ -169,6 +212,7 @@ def run_scoring(config_path: str) -> str:
     print("[scoring] Computing final scores...")
     scored['final_score'] = (
         w_omics * scored['omics_score'] +
+        w_ml * scored['ml_importance_score'] +
         w_lit * scored['literature_score'] +
         w_path * scored['pathway_score']
     )
@@ -177,7 +221,8 @@ def run_scoring(config_path: str) -> str:
     ranked = scored.sort_values('final_score', ascending=False)
 
     # Reorder columns
-    ranked = ranked[['gene', 'final_score', 'omics_score', 'literature_score', 'pathway_score']]
+    ranked = ranked[['gene', 'final_score', 'omics_score', 'ml_importance_score',
+                      'literature_score', 'pathway_score']]
 
     print(f"[scoring] Writing output to: {output_path}")
     write_csv(ranked, output_path)
@@ -186,7 +231,7 @@ def run_scoring(config_path: str) -> str:
     print(f"\n[scoring] Top 10 ranked genes:")
     for i, (_, row) in enumerate(ranked.head(10).iterrows()):
         print(f"        {i+1}. {row['gene']}: final={row['final_score']:.2f}, "
-              f"omics={row['omics_score']:.2f}")
+              f"omics={row['omics_score']:.2f}, ml={row['ml_importance_score']:.2f}")
 
     print(f"\n[scoring] Done. {len(ranked)} genes ranked.")
     return output_path

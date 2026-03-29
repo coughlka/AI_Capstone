@@ -138,9 +138,13 @@ def run_llm_scoring(config_path: str) -> str:
         gene = row["gene"]
         if gene not in grouped:
             grouped[gene] = []
+        # Use 'abstract' column if available, fall back to 'snippet'
+        abstract_text = str(row.get("abstract", "") or "")
+        if not abstract_text.strip():
+            abstract_text = str(row.get("snippet", "") or "")
         grouped[gene].append({
             "title": str(row.get("title", "")),
-            "abstract": str(row.get("abstract", "")),
+            "abstract": abstract_text,
         })
 
     # Build content hashes for each gene to detect changed abstracts
