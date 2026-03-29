@@ -1,9 +1,6 @@
 # Local data storage - always gitignored
 data/
 
-# Generated results - always gitignored
-outputs/
-
 # Python artifacts
 __pycache__/
 *.pyc
@@ -35,6 +32,10 @@ venv.bak/
 **/.htpasswd
 .env
 *.env
+
+# Large binary/cache artifacts
+outputs/models/*.pkl
+outputs/llm_scores_cache.json
 
 # Claude Code
 CLAUDE.md
