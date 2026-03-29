@@ -35,6 +35,10 @@ ENV PYTHONPATH=/root/.local/lib/python3.11/site-packages
 # Copy application code
 COPY web-app/ .
 
+# Copy pipeline outputs
+COPY outputs/ /outputs/
+ENV OUTPUTS_DIR=/outputs
+
 # Expose port (default 8000, can be overridden with BACKEND_PORT env var)
 EXPOSE 8000
 
