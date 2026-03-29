@@ -36,6 +36,9 @@ venv.bak/
 .env
 *.env
 
+# Claude Code
+CLAUDE.md
+
 # Terraform
 .terraform/
 *.tfstate
