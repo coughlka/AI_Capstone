@@ -13,8 +13,14 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 import requests
+from dotenv import load_dotenv
 
+from src.gene_mapping import load_extended_mapping, fetch_aliases_from_ensembl, save_mapping_file
 from src.utils import load_config, ensure_dirs, write_csv
+
+# Load .env from project root
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(_PROJECT_ROOT, ".env"))
 
 EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 
@@ -139,12 +145,27 @@ def _parse_pubmed_xml(xml_text: str) -> Dict[str, dict]:
     return out
 
 
-def _build_query(gene_symbol: str, templates: List[str]) -> str:
-    """Build a PubMed query from gene symbol and templates."""
+def _build_query(gene_symbol: str, templates: List[str], aliases: Optional[List[str]] = None) -> str:
+    """Build a PubMed query from gene symbol, aliases, and templates.
+
+    When aliases are provided, the query searches for any of the names,
+    ensuring genes like NIHCOLE (alias: LINC02163) are found under all
+    known identifiers.
+    """
+    all_names = [gene_symbol]
+    if aliases:
+        for alias in aliases:
+            if alias.upper() != gene_symbol.upper() and alias not in all_names:
+                all_names.append(alias)
+
     if templates:
-        parts = [f'({t.format(gene=gene_symbol)})' for t in templates]
+        parts = []
+        for name in all_names:
+            parts.extend(f'({t.format(gene=name)})' for t in templates)
         return " OR ".join(parts)
-    return f'("{gene_symbol}"[Title/Abstract] OR "{gene_symbol}"[All Fields])'
+
+    name_parts = [f'("{name}"[Title/Abstract] OR "{name}"[All Fields])' for name in all_names]
+    return " OR ".join(name_parts)
 
 
 def _snippet(abstract: str, max_len: int = 300) -> str:
@@ -158,6 +179,8 @@ def run_pubmed(config_path: str) -> str:
     """Run the PubMed literature search pipeline step.
 
     Queries PubMed for each candidate gene and retrieves abstracts.
+    Uses gene aliases from the mapping cache to broaden search coverage,
+    and retries zero-result genes via Ensembl REST API alias lookup.
 
     Args:
         config_path: Path to the configuration YAML file.
@@ -179,7 +202,7 @@ def run_pubmed(config_path: str) -> str:
     print(f"[pubmed] Reading candidate list from: {candidate_list_path}")
     if not os.path.exists(candidate_list_path):
         print(f"[pubmed] Warning: Candidate list not found at {candidate_list_path}. Creating empty output.")
-        pd.DataFrame(columns=['gene', 'pmid', 'year', 'title', 'snippet']).to_csv(output_path, index=False)
+        pd.DataFrame(columns=['gene', 'pmid', 'year', 'title', 'abstract', 'snippet']).to_csv(output_path, index=False)
         return output_path
 
     candidates_df = pd.read_csv(candidate_list_path)
@@ -196,7 +219,7 @@ def run_pubmed(config_path: str) -> str:
     pubmed_config = config.get('pubmed', {})
     email = pubmed_config.get('email', 'user@example.com')
     tool = pubmed_config.get('tool', 'ai-capstone')
-    api_key = pubmed_config.get('api_key')
+    api_key = pubmed_config.get('api_key') or os.getenv("NCBI_API_KEY")
     max_abstracts = pubmed_config.get('max_abstracts_per_gene', 5)
     query_templates = pubmed_config.get('query_templates', [])
 
@@ -206,15 +229,30 @@ def run_pubmed(config_path: str) -> str:
 
     client = PubMedClient(email=email, tool=tool, api_key=api_key)
 
+    # Load gene aliases from mapping cache for improved search coverage
+    alias_map = {}  # gene_id -> list of aliases
+    gene_mapping_config = config.get('gene_mapping', {})
+    mapping_cache = gene_mapping_config.get('cache_path', 'data/ensembl_to_symbol_cache.tsv')
+    if os.path.exists(mapping_cache):
+        extended = load_extended_mapping(mapping_cache)
+        for ens_id, info in extended.items():
+            alias_map[ens_id] = info.get('aliases', [])
+        print(f"[pubmed] Loaded aliases for {len(alias_map)} genes")
+
     rows = []
     total = len(gene_symbols)
+    zero_result_genes = []  # Track genes with no PubMed results for retry
 
     for i, (gene_id, symbol) in enumerate(zip(gene_ids, gene_symbols)):
         symbol_str = str(symbol).strip()
         if not symbol_str or symbol_str.lower() in ('nan', 'none'):
             continue
 
-        query = _build_query(symbol_str, query_templates)
+        # Get aliases for this gene to broaden PubMed search
+        gene_id_stripped = gene_id.split('.')[0] if '.' in str(gene_id) else str(gene_id)
+        aliases = alias_map.get(gene_id_stripped, [])
+
+        query = _build_query(symbol_str, query_templates, aliases=aliases)
 
         try:
             pmids = client.esearch(query=query, retmax=max_abstracts)
@@ -225,6 +263,9 @@ def run_pubmed(config_path: str) -> str:
         if not pmids:
             if (i + 1) % 50 == 0 or i == 0:
                 print(f"[pubmed] [{i+1}/{total}] {symbol_str}: 0 results")
+            # Track for alias-based retry if no aliases were available
+            if not aliases:
+                zero_result_genes.append((gene_id, gene_id_stripped, symbol_str))
             continue
 
         try:
@@ -243,13 +284,74 @@ def run_pubmed(config_path: str) -> str:
                 'pmid': rec['pmid'],
                 'year': rec['year'],
                 'title': rec['title'],
+                'abstract': rec['abstract'],
                 'snippet': _snippet(rec['abstract']),
             })
 
         if (i + 1) % 50 == 0 or i == 0:
             print(f"[pubmed] [{i+1}/{total}] {symbol_str}: {len(pmids)} abstracts")
 
-    lit_evidence = pd.DataFrame(rows) if rows else pd.DataFrame(columns=['gene', 'pmid', 'year', 'title', 'snippet'])
+    # Retry genes with zero results by fetching aliases from Ensembl REST API.
+    # This catches lncRNAs and other genes where mygene.info had no alias data
+    # (e.g., NIHCOLE -> LINC02163).
+    if zero_result_genes:
+        print(f"\n[pubmed] {len(zero_result_genes)} genes had 0 results and no aliases — "
+              f"trying Ensembl alias lookup...")
+        retry_ids = [eid for _, eid, _ in zero_result_genes]
+        ensembl_aliases = fetch_aliases_from_ensembl(retry_ids)
+
+        # Update the mapping cache with newly discovered aliases
+        if ensembl_aliases and os.path.exists(mapping_cache):
+            extended = load_extended_mapping(mapping_cache)
+            for eid, info in ensembl_aliases.items():
+                if eid in extended and info.get('aliases'):
+                    extended[eid]['aliases'] = info['aliases']
+            save_mapping_file(extended, mapping_cache)
+            print(f"[pubmed] Updated alias cache with {len(ensembl_aliases)} new entries")
+
+        retried = 0
+        for gene_id, gene_id_stripped, symbol_str in zero_result_genes:
+            new_aliases = ensembl_aliases.get(gene_id_stripped, {}).get('aliases', [])
+            if not new_aliases:
+                continue
+
+            query = _build_query(symbol_str, query_templates, aliases=new_aliases)
+            try:
+                pmids = client.esearch(query=query, retmax=max_abstracts)
+            except Exception as e:
+                print(f"[pubmed] [retry] {symbol_str}: search failed ({e})")
+                continue
+
+            if not pmids:
+                continue
+
+            retried += 1
+            print(f"[pubmed] [retry] {symbol_str} (aliases: {new_aliases}): "
+                  f"{len(pmids)} abstracts found!")
+
+            try:
+                xml = client.efetch_xml(pmids)
+                parsed = _parse_pubmed_xml(xml)
+            except Exception as e:
+                print(f"[pubmed] [retry] {symbol_str}: fetch failed ({e})")
+                continue
+
+            for pmid in pmids:
+                if pmid not in parsed:
+                    continue
+                rec = parsed[pmid]
+                rows.append({
+                    'gene': gene_id,
+                    'pmid': rec['pmid'],
+                    'year': rec['year'],
+                    'title': rec['title'],
+                    'abstract': rec['abstract'],
+                    'snippet': _snippet(rec['abstract']),
+                })
+
+        print(f"[pubmed] Alias retry recovered abstracts for {retried} genes")
+
+    lit_evidence = pd.DataFrame(rows) if rows else pd.DataFrame(columns=['gene', 'pmid', 'year', 'title', 'abstract', 'snippet'])
 
     unique_genes = lit_evidence['gene'].nunique() if not lit_evidence.empty else 0
     print(f"[pubmed] Retrieved {len(lit_evidence)} abstracts for {unique_genes} genes")
@@ -257,4 +359,151 @@ def run_pubmed(config_path: str) -> str:
     write_csv(lit_evidence, output_path)
 
     print("[pubmed] Done.")
+    return output_path
+
+
+def run_pubmed_retry(config_path: str) -> str:
+    """Retry PubMed searches only for genes with zero abstracts in existing output.
+
+    Reads the existing lit_evidence.csv, identifies genes with no results,
+    fetches aliases from the Ensembl REST API, and retries PubMed searches.
+    Appends new results to the existing output file.
+
+    Args:
+        config_path: Path to the configuration YAML file.
+
+    Returns:
+        Path to the updated output CSV file.
+    """
+    print("[pubmed-retry] Loading configuration...")
+    config = load_config(config_path)
+    ensure_dirs(config)
+
+    outputs_dir = config['paths']['outputs_dir']
+    output_path = os.path.join(outputs_dir, 'lit_evidence.csv')
+
+    if not os.path.exists(output_path):
+        print(f"[pubmed-retry] No existing output at {output_path}. Run full pubmed first.")
+        return output_path
+
+    existing = pd.read_csv(output_path)
+    genes_with_results = set(existing['gene'].unique()) if not existing.empty else set()
+
+    # Get candidate list
+    candidates_config = config.get('candidates', {})
+    candidate_list_path = candidates_config.get(
+        'output_path', os.path.join(outputs_dir, 'candidates.csv'))
+    candidates_df = pd.read_csv(candidate_list_path)
+
+    if 'gene_symbol' in candidates_df.columns:
+        gene_ids = candidates_df['gene'].tolist()
+        gene_symbols = candidates_df['gene_symbol'].tolist()
+    else:
+        gene_ids = candidates_df['gene'].tolist()
+        gene_symbols = gene_ids
+
+    # Find genes with zero results
+    zero_genes = []
+    for gene_id, symbol in zip(gene_ids, gene_symbols):
+        symbol_str = str(symbol).strip()
+        if not symbol_str or symbol_str.lower() in ('nan', 'none'):
+            continue
+        if gene_id not in genes_with_results:
+            gene_id_stripped = gene_id.split('.')[0] if '.' in str(gene_id) else str(gene_id)
+            zero_genes.append((gene_id, gene_id_stripped, symbol_str))
+
+    if not zero_genes:
+        print("[pubmed-retry] All genes already have PubMed results. Nothing to retry.")
+        return output_path
+
+    print(f"[pubmed-retry] {len(zero_genes)} genes have zero abstracts")
+
+    # Load existing aliases
+    gene_mapping_config = config.get('gene_mapping', {})
+    mapping_cache = gene_mapping_config.get('cache_path', 'data/ensembl_to_symbol_cache.tsv')
+    alias_map = {}
+    if os.path.exists(mapping_cache):
+        extended = load_extended_mapping(mapping_cache)
+        for ens_id, info in extended.items():
+            alias_map[ens_id] = info.get('aliases', [])
+
+    # Separate: genes that already have aliases vs genes that need Ensembl lookup
+    need_ensembl = [g for g in zero_genes if not alias_map.get(g[1], [])]
+    have_aliases = [g for g in zero_genes if alias_map.get(g[1], [])]
+
+    print(f"[pubmed-retry] {len(have_aliases)} already have aliases, "
+          f"{len(need_ensembl)} need Ensembl lookup")
+
+    # Fetch aliases from Ensembl for genes that have none
+    if need_ensembl:
+        ensembl_ids = [eid for _, eid, _ in need_ensembl]
+        ensembl_aliases = fetch_aliases_from_ensembl(ensembl_ids)
+
+        # Update cache
+        if ensembl_aliases and os.path.exists(mapping_cache):
+            ext = load_extended_mapping(mapping_cache)
+            for eid, info in ensembl_aliases.items():
+                if eid in ext and info.get('aliases'):
+                    ext[eid]['aliases'] = info['aliases']
+                    alias_map[eid] = info['aliases']
+            save_mapping_file(ext, mapping_cache)
+            print(f"[pubmed-retry] Updated alias cache with {len(ensembl_aliases)} entries")
+
+    # PubMed config
+    pubmed_config = config.get('pubmed', {})
+    email = pubmed_config.get('email', 'user@example.com')
+    tool = pubmed_config.get('tool', 'ai-capstone')
+    api_key = pubmed_config.get('api_key') or os.getenv("NCBI_API_KEY")
+    max_abstracts = pubmed_config.get('max_abstracts_per_gene', 5)
+    query_templates = pubmed_config.get('query_templates', [])
+
+    client = PubMedClient(email=email, tool=tool, api_key=api_key)
+
+    new_rows = []
+    recovered = 0
+    for gene_id, gene_id_stripped, symbol_str in zero_genes:
+        aliases = alias_map.get(gene_id_stripped, [])
+        query = _build_query(symbol_str, query_templates, aliases=aliases)
+
+        try:
+            pmids = client.esearch(query=query, retmax=max_abstracts)
+        except Exception as e:
+            print(f"[pubmed-retry] {symbol_str}: search failed ({e})")
+            continue
+
+        if not pmids:
+            continue
+
+        recovered += 1
+        print(f"[pubmed-retry] {symbol_str} (aliases: {aliases}): {len(pmids)} abstracts")
+
+        try:
+            xml = client.efetch_xml(pmids)
+            parsed = _parse_pubmed_xml(xml)
+        except Exception as e:
+            print(f"[pubmed-retry] {symbol_str}: fetch failed ({e})")
+            continue
+
+        for pmid in pmids:
+            if pmid not in parsed:
+                continue
+            rec = parsed[pmid]
+            new_rows.append({
+                'gene': gene_id,
+                'pmid': rec['pmid'],
+                'year': rec['year'],
+                'title': rec['title'],
+                'abstract': rec['abstract'],
+                'snippet': _snippet(rec['abstract']),
+            })
+
+    if new_rows:
+        new_df = pd.DataFrame(new_rows)
+        combined = pd.concat([existing, new_df], ignore_index=True)
+        write_csv(combined, output_path)
+        print(f"[pubmed-retry] Added {len(new_rows)} abstracts for {recovered} genes")
+    else:
+        print("[pubmed-retry] No new abstracts found")
+
+    print("[pubmed-retry] Done.")
     return output_path
