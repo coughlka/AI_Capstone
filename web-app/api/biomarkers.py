@@ -9,9 +9,9 @@ import pandas as pd
 
 router = APIRouter(prefix="/api", tags=["Biomarkers"])
 
-# Data paths - relative to project root
+# Data paths - env var for Docker, fallback to project root for local dev
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUTPUTS_DIR = os.path.join(PROJECT_ROOT, "outputs")
+OUTPUTS_DIR = os.environ.get("OUTPUTS_DIR", os.path.join(PROJECT_ROOT, "outputs"))
 
 # Cache loaded dataframes
 _data_cache = {}
