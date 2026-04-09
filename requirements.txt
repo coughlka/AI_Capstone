@@ -19,3 +19,7 @@ anthropic
 # ML importance (SHAP explainability)
 scikit-learn
 shap
+
+# MMR deficiency classifier (Ayan's module)
+xgboost
+joblib

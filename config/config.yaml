@@ -45,3 +45,25 @@ scoring:
     ml_importance: 0.10
     literature: 0.30
     pathway: 0.20
+
+# Within-COAD MMR deficiency classifier (Ayan Choudhury's module).
+# Run via: python run_mmr_classifier.py --config config/config.yaml
+mmr:
+  expression_path: data/TCGA-COAD.star_counts.tsv
+  phenotype_path: data/TCGA-COAD.GDC_phenotype.tsv
+  output_dir: outputs/coad_mmr_classifier
+  phenotype_barcode_col: submitter_id.samples
+  phenotype_label_col: loss_expression_of_mismatch_repair_proteins_by_ihc
+  test_size: 0.20
+  random_state: 42
+  cv_folds: 5
+  min_nonzero_fraction: 0.10
+  variance_threshold: 0.0
+  top_k_features: 1000
+  n_jobs: -1
+  min_class_size: 15
+  biomarker_candidates_file: outputs/ranked_candidates.csv
+  biomarker_gene_col: gene
+  biomarker_score_col: final_score
+  compare_top_n_shap: 100
+  compare_top_n_biomarkers: 500
