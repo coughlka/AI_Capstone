@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - gsaenz1/update-pipeline
 
 env:
   IMAGE_NAME: biomarker-cancer-web-app
