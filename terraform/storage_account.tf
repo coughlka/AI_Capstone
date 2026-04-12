@@ -8,9 +8,8 @@ resource "azurerm_storage_account" "storage_account" {
   public_network_access_enabled = false
 
   network_rules {
-    default_action             = "Deny"
-    virtual_network_subnet_ids = [azurerm_subnet.webapp_subnet.id]
-    bypass                     = ["AzureServices"]
+    default_action = "Deny"
+    bypass         = ["AzureServices"]
   }
 
   tags = var.tags
