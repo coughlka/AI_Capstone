@@ -1,12 +1,16 @@
 """LLM-powered chat endpoint for asking questions about biomarker data."""
 
+import logging
 import os
+import re
+import time
+from collections import defaultdict
 from typing import List, Optional
 
 import anthropic
 import pandas as pd
 from dotenv import load_dotenv
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from api.biomarkers import _load_data
@@ -14,9 +18,93 @@ from api.biomarkers import _load_data
 # Load .env from the web-app directory
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api", tags=["Chat"])
 
+# ---------------------------------------------------------------------------
+# Input-validation constants
+# ---------------------------------------------------------------------------
+MAX_MESSAGE_LENGTH = 2000  # characters
+MAX_HISTORY_MESSAGES = 20  # conversation turns sent to the LLM
+# Ensembl gene ID pattern (e.g. ENSG00000141510)
+_GENE_ID_RE = re.compile(r"^ENSG\d{11}$")
+
+# ---------------------------------------------------------------------------
+# Simple in-memory sliding-window rate limiter
+# ---------------------------------------------------------------------------
+_RATE_LIMIT_WINDOW = 60  # seconds
+_RATE_LIMIT_MAX = 20     # max requests per window per IP
+_request_log: dict[str, list[float]] = defaultdict(list)
+
+
+def _check_rate_limit(client_ip: str) -> None:
+    """Enforce a per-IP sliding-window rate limit.
+
+    Raises HTTP 429 if the client has exceeded the allowed number of
+    requests within the current window.
+    """
+    now = time.monotonic()
+    timestamps = _request_log[client_ip]
+
+    # Prune timestamps outside the window
+    _request_log[client_ip] = [
+        ts for ts in timestamps if now - ts < _RATE_LIMIT_WINDOW
+    ]
+
+    if len(_request_log[client_ip]) >= _RATE_LIMIT_MAX:
+        logger.warning("Rate limit exceeded for %s", client_ip)
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded. Please wait before sending more messages.",
+        )
+
+    _request_log[client_ip].append(now)
+
+
+# ---------------------------------------------------------------------------
+# Gene-context validation
+# ---------------------------------------------------------------------------
+def _validate_gene_context(gene_context: Optional[str]) -> Optional[str]:
+    """Validate and sanitize the gene_context parameter.
+
+    Returns the validated gene ID or None.  Rejects any value that does
+    not match the expected Ensembl ID format *and* exist in the loaded
+    dataset, preventing arbitrary text from being interpolated into the
+    system prompt.
+    """
+    if gene_context is None:
+        return None
+
+    gene_context = gene_context.strip()
+    if not gene_context:
+        return None
+
+    # Structural check — must look like an Ensembl gene ID
+    if not _GENE_ID_RE.match(gene_context):
+        logger.warning("Rejected invalid gene_context format: %s", gene_context[:60])
+        return None
+
+    # Existence check — must be present in our dataset
+    try:
+        data = _load_data()
+        known_genes = set(data["ranked"]["gene"].tolist())
+        if not data["omics"].empty:
+            known_genes.update(data["omics"]["gene"].tolist())
+
+        if gene_context not in known_genes:
+            logger.warning("Rejected unknown gene_context: %s", gene_context)
+            return None
+    except Exception:
+        # If data can't be loaded, disallow context injection entirely
+        return None
+
+    return gene_context
+
+
+# ---------------------------------------------------------------------------
 # Anthropic client (initialized lazily)
+# ---------------------------------------------------------------------------
 _client = None
 
 
@@ -102,7 +190,7 @@ def _build_system_prompt(gene_context: Optional[str] = None) -> str:
     except Exception:
         system += "\n(Pipeline data not available.)\n"
 
-    # Tier 3: Gene-specific detail
+    # Tier 3: Gene-specific detail (gene_context has already been validated)
     if gene_context:
         try:
             data = _load_data()
@@ -147,16 +235,33 @@ def _build_system_prompt(gene_context: Optional[str] = None) -> str:
 
 
 @router.post("/chat")
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, raw_request: Request):
     """Send a message to the LLM with biomarker data context."""
+
+    # --- Input validation & rate limiting ---
+    client_ip = raw_request.client.host if raw_request.client else "unknown"
+    _check_rate_limit(client_ip)
+
+    # Enforce message length limit
+    if len(request.message) > MAX_MESSAGE_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Message too long. Maximum length is {MAX_MESSAGE_LENGTH} characters.",
+        )
+
+    if not request.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty.")
+
+    # Validate and sanitize gene_context before it reaches the system prompt
+    validated_gene_context = _validate_gene_context(request.gene_context)
+
     client = _get_client()
+    system_prompt = _build_system_prompt(validated_gene_context)
 
-    system_prompt = _build_system_prompt(request.gene_context)
-
-    # Build message history (last 20 messages + current message)
+    # Build message history (last N messages + current message)
     messages = [
         {"role": msg.role, "content": msg.content}
-        for msg in request.history[-20:]
+        for msg in request.history[-MAX_HISTORY_MESSAGES:]
     ]
     messages.append({"role": "user", "content": request.message})
 
