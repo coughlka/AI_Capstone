@@ -20,13 +20,17 @@ auditable evidence trail across all four streams.
 
 The companion MMR-deficiency classifier answers a distinct biological question:
 within the COAD cohort, can a supervised model distinguish mismatch repair
-proficient from deficient tumors? Using 58 IHC-labeled samples (30 MSS / 28 MSI),
-random forest achieved a tuned F1 of 0.67 (PR-AUC 0.72, threshold 0.1) on the
-holdout set. SHAP feature attributions from the best model overlapped 99% with
-our candidate pool at the gene-universe level but only 3% with the top-500
-ranked biomarkers — a noteworthy finding that suggests the MMR-deficiency
-signal is largely orthogonal to the generalized CRC biomarker ranking and
-should be treated as a complementary, not redundant, evidence stream.
+proficient from deficient tumors? Using 340 IHC-labeled samples (284 pMMR /
+56 dMMR), logistic regression was selected as the best model (tuned F1 0.56,
+holdout ROC-AUC 0.737, PR-AUC 0.339 at threshold 0.61). Random forest and
+XGBoost reached similar holdout ROC-AUCs of 0.762 and 0.770 respectively,
+and the three-model agreement supports the conclusion that MMR-deficiency
+status carries a real but modest transcriptomic signature in this cohort.
+SHAP feature attributions from the best model overlapped 84% with our
+candidate pool at the gene-universe level but 0% with the top-500 ranked
+biomarkers, a noteworthy finding that shows the MMR-deficiency signal is
+largely orthogonal to the generalized CRC biomarker ranking and should be
+treated as a complementary, not redundant, evidence stream.
 
 ## Practical Implications
 
@@ -62,13 +66,14 @@ therefore biased toward variants and expression patterns well-represented in
 this cohort and may underrepresent signal that is more prevalent in other
 ancestral or geographic populations.
 
-**MMR classifier sample size.** The IHC label column in the TCGA GDC phenotype
-file yielded only 58 labeled samples after joining to expression. While class
-balance is reasonable (30 / 28), the holdout set is only 12 samples, so point
-estimates of F1, ROC-AUC, and PR-AUC carry wide confidence intervals. Attempting
-to increase sample size by switching to the `microsatellite_instability` column
-yielded 92 samples but with severe class imbalance (81 / 11), producing even
-less trustworthy holdout metrics.
+**MMR classifier class imbalance.** The IHC label column yields 340 labeled
+samples after joining to expression (284 pMMR / 56 dMMR). The 5 to 1 class
+imbalance, while reflecting the real prevalence of MMR deficiency in
+unselected COAD, limits the PR-AUC ceiling and forces threshold tuning away
+from the default 0.5 to recover useful F1. The 68-sample holdout set is also
+small enough that point estimates of F1 carry meaningful uncertainty; the
+CV ROC-AUC (0.71 to 0.74 across the three models) is a more reliable
+indicator of true discriminative performance than the holdout tuned F1.
 
 **Literature stream.** PubMed abstract retrieval is bounded by the NCBI rate
 limit and the query design. A gene with strong but recent or non-English
@@ -120,32 +125,39 @@ report are point-in-time.
 
 **Current limits.**
 
-- **Random forest** is the best-performing MMR classifier on holdout F1, but its
-  cross-validation ROC-AUC (0.52, std 0.17) is barely above chance. With only
-  46 training samples after the stratified split, the model has limited capacity
-  to learn stable gene-expression signatures and the variance across folds is
-  high enough that the ranking of models (RF > LR > XGB) is not statistically
-  reliable.
-- **Logistic regression** with L1 regularization is the most interpretable
-  option and produces a parsimonious coefficient vector, but its CV F1 (0.45,
-  std 0.31) suggests that the true class boundary may be too non-linear for a
-  linear model at this sample size.
-- **XGBoost** performs worst on CV (ROC-AUC 0.47), consistent with tree-boosting
-  methods generally requiring larger sample counts to avoid overfitting.
+- **Logistic regression** is selected as the best MMR classifier, with a
+  tuned holdout F1 of 0.56, holdout ROC-AUC 0.737, and CV ROC-AUC 0.708.
+  Its primary advantage is interpretability: the fitted coefficient vector
+  identifies which genes drive each prediction, which matters more in a
+  biological setting than marginal gains in raw discrimination.
+- **Random forest** reaches a higher holdout ROC-AUC (0.762) but a lower
+  tuned F1 (0.50) and CV F1 (0.0 at the default threshold, driven by class
+  imbalance rather than a failure to learn). Its feature importance ranking
+  correlates with LR coefficients on the top features, supporting the
+  conclusion that the signal is real rather than a model artifact.
+- **XGBoost** achieves the highest holdout ROC-AUC (0.770) but the lowest
+  tuned F1 (0.47), reflecting the sensitivity of boosted trees to class
+  imbalance at this sample size. Its CV ROC-AUC (0.743) is the highest of
+  the three, suggesting that with more data it would likely lead on all
+  metrics.
 
 **Suggested improvements.**
 
-1. **Bigger labeled sample.** The single most impactful change is increasing
-   the labeled MMR-status set beyond 58 samples — see future work item 1.
+1. **External validation.** Apply the fitted LR classifier to an independent
+   COAD cohort (CPTAC or a published MMR-labeled dataset) to test whether
+   the gene coefficients generalize beyond TCGA-COAD. This is the highest
+   value next step for defending the classifier in a real-world setting.
 2. **Gene-set-level features.** Collapse the ~60K-gene feature space into
    known MMR / DNA-damage-response pathway module scores (MSigDB Hallmark,
    Reactome MMR, KEGG mismatch repair). This would reduce the feature count
-   from 60,660 to ~50 and sharply improve the sample-to-feature ratio.
+   from 60,660 to approximately 50 and sharply improve the sample-to-feature
+   ratio.
 3. **Hyperparameter search and calibration.** The current models use default
-   scikit-learn / XGBoost parameters. A nested cross-validation hyperparameter
-   search, plus probability calibration (isotonic or Platt), would produce
-   more trustworthy class-probability outputs for downstream use.
+   scikit-learn and XGBoost parameters. A nested cross-validation
+   hyperparameter search, plus probability calibration (isotonic or Platt),
+   would produce more trustworthy class-probability outputs for downstream
+   use, particularly for XGBoost, which has the most room to benefit.
 4. **Uncertainty quantification.** Replace point estimates with bootstrap
    confidence intervals on all holdout metrics, so future readers understand
    the magnitude of the statistical noise in the current numbers rather than
-   over-interpreting a single F1 of 0.67.
+   over-interpreting a single F1 value.

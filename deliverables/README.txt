@@ -29,8 +29,9 @@ literature; known biomarkers rank 1.46x better than chance (median rank
 12,493 versus an expected 18,259 under a uniform null), and all 14
 Tier-1 FDA / guideline biomarkers are recovered from the 36,519-gene
 universe. A companion mismatch-repair (MMR) deficiency classifier
-(LR / RF / XGBoost on TCGA-COAD IHC labels) is included as a second,
-complementary analysis. All results are served through a FastAPI web
+(LR / RF / XGBoost on TCGA-COAD IHC labels, 340 samples with a 284 pMMR /
+56 dMMR split) reaches a holdout ROC-AUC of 0.71 to 0.77 across the three
+models and is included as a second, complementary analysis. All results are served through a FastAPI web
 application with an interactive Claude chat endpoint, deployed to Azure
 via Terraform-managed infrastructure.
 
