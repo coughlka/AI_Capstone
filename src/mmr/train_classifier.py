@@ -193,8 +193,9 @@ def _derive_mmr_labels(phenotype_path: Path, barcode_col: str, label_col: str) -
     out["sample_barcode_raw"] = out["sample_barcode_raw"].astype(str).str.strip()
     out["label_source"] = out["label_source"].astype(str).str.strip().str.upper()
 
-    out = out[out["label_source"].isin(["YES", "NO"])].copy()
-    out["target"] = out["label_source"].map({"YES": 1, "NO": 0})
+    label_map = {"YES": 1, "NO": 0, "POSITIVE": 1, "NEGATIVE": 0}
+    out = out[out["label_source"].isin(label_map)].copy()
+    out["target"] = out["label_source"].map(label_map)
     out["participant_id"] = out["sample_barcode_raw"].map(_participant_id_from_barcode)
     out["sample_id_short"] = out["sample_barcode_raw"].map(_sample_id_short)
     return out.drop_duplicates(subset=["participant_id"], keep="first")
@@ -446,7 +447,12 @@ def _run_shap_analysis(
         if model.__class__.__name__ in {"RandomForestClassifier", "XGBClassifier"}:
             explainer = shap.TreeExplainer(model)
             shap_values = explainer.shap_values(X_exp_t_small)
-            shap_matrix = shap_values[1] if isinstance(shap_values, list) else shap_values
+            if isinstance(shap_values, list):
+                shap_matrix = shap_values[1]
+            else:
+                shap_matrix = np.asarray(shap_values)
+                if shap_matrix.ndim == 3:
+                    shap_matrix = shap_matrix[:, :, 1]
         else:
             explainer = shap.Explainer(model, X_ref_t)
             shap_obj = explainer(X_exp_t_small)
