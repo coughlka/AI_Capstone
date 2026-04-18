@@ -247,9 +247,12 @@ async function showGeneDetails(geneId) {
 
 function renderGeneDetails(data) {
     const scores = data.scores || {};
+    const weights = data.scoring_weights || {};
     const omics = data.omics_evidence || {};
     const pathway = data.pathway_evidence || {};
     const llm = data.llm_analysis || null;
+
+    const pct = (k) => weights[k] != null ? ` (${Math.round(weights[k] * 100)}%)` : '';
 
     return `
         <div class="detail-section">
@@ -260,15 +263,19 @@ function renderGeneDetails(data) {
                     <span class="score-value-large">${formatScore(scores.final)}</span>
                 </div>
                 <div class="score-item">
-                    <span class="score-label">Omics (45%)</span>
+                    <span class="score-label">Omics${pct('omics')}</span>
                     <span class="score-value-large">${formatScore(scores.omics)}</span>
                 </div>
                 <div class="score-item">
-                    <span class="score-label">Literature (35%)</span>
+                    <span class="score-label">ML Importance${pct('ml_importance')}</span>
+                    <span class="score-value-large">${formatScore(scores.ml_importance)}</span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Literature${pct('literature')}</span>
                     <span class="score-value-large">${formatScore(scores.literature)}</span>
                 </div>
                 <div class="score-item">
-                    <span class="score-label">Pathway (20%)</span>
+                    <span class="score-label">Pathway${pct('pathway')}</span>
                     <span class="score-value-large">${formatScore(scores.pathway)}</span>
                 </div>
             </div>

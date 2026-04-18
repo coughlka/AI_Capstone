@@ -83,24 +83,26 @@ SETUP STEPS
 EXECUTION
 ================================================================================
 
-RUN THE FULL PIPELINE (STEPS 1-6)
+RUN THE FULL PIPELINE (STEPS 1-7)
 ---------------------------------
 From the project root:
 
     python run_pipeline.py --config config/config.yaml
 
 Execution order:
-    Step 1: Omics differential expression   -> outputs/omics_evidence.csv
-                                               outputs/candidates.csv
-    Step 2: PubMed literature retrieval     -> outputs/lit_evidence.csv
-    Step 3: Pathway enrichment (g:Profiler) -> outputs/pathway_evidence.csv
-    Step 4: LLM scoring via Claude API      -> outputs/llm_scores.csv
-    Step 5: Weighted scoring and ranking    -> outputs/ranked_candidates.csv
-    Step 6: Validation vs known biomarkers  -> outputs/validation_report.csv
-                                               outputs/validation_summary.json
+    Step 1: Omics differential expression    -> outputs/omics_evidence.csv
+                                                outputs/candidates.csv
+    Step 2: Supervised ML feature importance -> outputs/ml_importance.csv
+                                                outputs/ml_cv_metrics.csv
+    Step 3: PubMed literature retrieval      -> outputs/lit_evidence.csv
+    Step 4: Pathway enrichment (g:Profiler)  -> outputs/pathway_evidence.csv
+    Step 5: LLM scoring via Claude API       -> outputs/llm_scores.csv
+    Step 6: Weighted scoring and ranking     -> outputs/ranked_candidates.csv
+    Step 7: Validation vs known biomarkers   -> outputs/validation_report.csv
+                                                outputs/validation_summary.json
 
 Typical wall-clock: ~20 - 30 minutes on a modern laptop, dominated by
-Step 2 (rate-limited NCBI calls) and Step 4 (LLM calls, ~400 genes).
+Step 3 (rate-limited NCBI calls) and Step 5 (LLM calls, ~400 genes).
 LLM scores are content-hash cached; re-running with unchanged inputs
 completes in under one minute.
 
