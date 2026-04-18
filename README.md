@@ -59,13 +59,14 @@ Download TCGA-COAD STAR counts from [UCSC Xena Browser](https://xenabrowser.net/
 python run_pipeline.py --config config/config.yaml
 ```
 
-The pipeline runs 6 steps in sequence:
+The pipeline runs 7 steps in sequence:
 1. **Omics** — Differential expression analysis (Welch's t-test, BH FDR correction)
-2. **PubMed** — Literature retrieval for top 500 candidate genes
-3. **Pathway** — g:Profiler enrichment analysis
-4. **LLM Scoring** — Claude scores literature relevance for each gene (content-hash cached)
-5. **Scoring** — Weighted combination: omics (40%), literature (30%), pathway (20%), ML importance (10%)
-6. **Validation** — Enrichment ratio vs 80 known CRC biomarkers (FDA/guideline + COSMIC + literature tiers)
+2. **ML importance** — Supervised RF classifier on the 473 tumor / 41 normal expression matrix; feature importance becomes the `ml_importance` stream
+3. **PubMed** — Literature retrieval for top 500 candidate genes
+4. **Pathway** — g:Profiler enrichment analysis
+5. **LLM scoring** — Claude scores literature relevance for each gene (content-hash cached)
+6. **Scoring** — Weighted combination: omics (40%), literature (30%), pathway (20%), ml_importance (10%)
+7. **Validation** — Enrichment ratio vs 80 known CRC biomarkers (FDA/guideline + COSMIC + literature tiers)
 
 ### 5. Run the MMR Deficiency Classifier (optional, separate pipeline)
 
@@ -171,3 +172,11 @@ All pipeline parameters are in `config/config.yaml`:
 - Best Tier 1 FDA / guideline biomarker: **BMP3 at rank #14**
 - Best Tier 3 literature biomarker: **FOXQ1 at rank #53**
 - **MMR classifier**: 340 labeled samples (284 pMMR / 56 dMMR), logistic regression holdout ROC-AUC 0.737, tuned F1 0.56
+
+## Reproducibility Notes
+
+Steps 1, 2, 4, and 6 (omics DE, ML importance, pathway, scoring / validation) are fully deterministic given the inputs in `data/` and the weights in `config/config.yaml`. Random seeds are pinned in `src/scoring.py` and `src/mmr/train_classifier.py` (`random_state=42`).
+
+Step 3 (PubMed) depends on network calls to NCBI E-Utilities and is the only source of non-determinism in the main pipeline. NCBI rate-limiting or transient timeouts can cause the retrieved abstract set for a given gene to vary slightly between runs, which in turn shifts its LLM-derived literature score and can move individual ranks in the top 500 by a handful of positions. Step 5 LLM scores are content-hash cached (`outputs/llm_scores_cache.json`), so identical abstracts always produce identical scores.
+
+The committed `outputs/*.csv` and `outputs/validation_summary.json` files are the canonical results that back the report. Running `python run_pipeline.py` against the same `data/` inputs will reproduce the headline numbers (enrichment 1.46x, 4 known biomarkers in top 500, 79 / 80 recovered, median rank 12,493) but may differ from the committed files for a few individual gene ranks due to the PubMed variability above. The MMR classifier (`run_mmr_classifier.py`) is fully deterministic given the seed.

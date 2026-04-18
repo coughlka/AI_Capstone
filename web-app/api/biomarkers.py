@@ -4,6 +4,7 @@ import json
 import os
 from typing import Optional
 
+import yaml
 from fastapi import APIRouter, Query, HTTPException
 import pandas as pd
 
@@ -12,6 +13,22 @@ router = APIRouter(prefix="/api", tags=["Biomarkers"])
 # Data paths - env var for Docker, fallback to project root for local dev
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUTPUTS_DIR = os.environ.get("OUTPUTS_DIR", os.path.join(PROJECT_ROOT, "outputs"))
+CONFIG_PATH = os.environ.get("PIPELINE_CONFIG", os.path.join(PROJECT_ROOT, "config", "config.yaml"))
+
+_DEFAULT_WEIGHTS = {"omics": 0.40, "ml_importance": 0.10, "literature": 0.30, "pathway": 0.20}
+
+
+def _load_scoring_weights() -> dict:
+    """Read scoring weights from config.yaml; fall back to defaults if unreadable."""
+    try:
+        with open(CONFIG_PATH) as f:
+            cfg = yaml.safe_load(f) or {}
+        weights = (cfg.get("scoring") or {}).get("weights") or {}
+        if weights:
+            return {k: float(v) for k, v in weights.items()}
+    except (OSError, yaml.YAMLError):
+        pass
+    return dict(_DEFAULT_WEIGHTS)
 
 # Cache loaded dataframes
 _data_cache = {}
@@ -170,9 +187,11 @@ async def get_gene_detail(gene_id: str):
         "scores": {
             "final": gene_data.get("final_score"),
             "omics": gene_data.get("omics_score"),
+            "ml_importance": gene_data.get("ml_importance_score"),
             "literature": gene_data.get("literature_score"),
             "pathway": gene_data.get("pathway_score")
         },
+        "scoring_weights": _load_scoring_weights(),
         "omics_evidence": omics_evidence,
         "pathway_evidence": pathway_evidence,
         "llm_analysis": llm_analysis
@@ -188,11 +207,7 @@ async def get_stats():
 
     stats = {
         "total_genes": len(ranked),
-        "scoring_weights": {
-            "omics": 0.45,
-            "literature": 0.35,
-            "pathway": 0.20
-        },
+        "scoring_weights": _load_scoring_weights(),
         "score_range": {
             "min": float(ranked["final_score"].min()) if not ranked.empty else 0,
             "max": float(ranked["final_score"].max()) if not ranked.empty else 0,
