@@ -39,11 +39,14 @@ pip install -r requirements.txt
 
 ### 2. Environment Variables
 
-Create a `web-app/.env` file with your Anthropic API key (required for LLM scoring and chat):
+Create a `.env` file (project root for the pipeline; `web-app/.env` for the web app — both paths are loaded) with:
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_API_KEY=sk-ant-...      # required for Step 5 LLM scoring and the /api/chat endpoint
+NCBI_API_KEY=...                   # optional but recommended; lifts NCBI rate limit in Step 3
 ```
+
+A `.env.example` is provided as a template.
 
 ### 3. Download Data
 
@@ -85,13 +88,41 @@ cd web-app
 python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
+Or with Docker from the project root:
+
+```bash
+docker-compose up
+```
+
 Open http://localhost:8000 to browse results.
+
+## Deployment (Azure)
+
+The web app is deployed to Azure App Service. The live URL is [https://psuai894webapp.azurewebsites.net](https://psuai894webapp.azurewebsites.net).
+
+| Component | Resource |
+|---|---|
+| Container registry | Azure Container Registry (`psuai894acr`) |
+| App host | Azure App Service, B1 tier, Linux container (`psuai894webapp`, resource group `PSU-AI894-State-RG`) |
+| Infrastructure | Terraform (`terraform/*.tf`), state backend in Azure Storage (`psuai894storage`) |
+| CI/CD | `.github/workflows/deploy.yml` builds the Docker image from `Dockerfile` and pushes to ACR on merge to `main` |
+
+To deploy from a fresh clone:
+
+```bash
+cd terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+The GitHub Actions workflow handles image builds and ACR pushes automatically on merge to `main`.
 
 ## Project Structure
 
 ```
 AI_Capstone/
-├── run_pipeline.py              # CLI entrypoint (6-step main pipeline)
+├── run_pipeline.py              # CLI entrypoint (7-step main pipeline)
 ├── run_mmr_classifier.py        # CLI entrypoint (3-step MMR pipeline)
 ├── config/
 │   └── config.yaml              # Central configuration
@@ -159,7 +190,7 @@ All pipeline parameters are in `config/config.yaml`:
 - **Candidates**: `top_n` (default 500), `fdr_threshold` (0.05)
 - **PubMed**: API credentials, `max_abstracts_per_gene` (5), query templates
 - **Pathway**: g:Profiler sources (GO:BP, KEGG, REAC, WP), FDR threshold
-- **Scoring weights**: omics (0.40), literature (0.30), pathway (0.20), ml_importance (0.10)
+- **Scoring weights**: omics (0.40), ml_importance (0.10), literature (0.30), pathway (0.20)
 - **MMR classifier**: expression path, phenotype path, label column, CV folds, top-k features
 
 ## Key Results
