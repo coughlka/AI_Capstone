@@ -37,6 +37,9 @@ venv.bak/
 outputs/models/*.pkl
 outputs/llm_scores_cache.json
 
+# Submission bundles (rebuild locally; do not commit)
+deliverables/*.zip
+
 # Claude Code
 CLAUDE.md
 
